@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# SCRIPT DE DESPLIEGUE DEFINITIVO CON WEP CORREGIDO - LAB WI-FI (mac80211_hwsim)
+# SCRIPT DE DESPLIEGUE DEFINITIVO Y REALISTA - LAB WI-FI (mac80211_hwsim)
 # ==============================================================================
 
 set -e
@@ -19,6 +19,7 @@ pkill -9 wpa_supplicant 2>/dev/null || true
 pkill -9 nc 2>/dev/null || true
 pkill -9 curl 2>/dev/null || true
 pkill -9 ping 2>/dev/null || true
+pkill -9 arping 2>/dev/null || true
 
 # Limpiar sockets residuales
 rm -rf /var/run/wpa_supplicant* 2>/dev/null || true
@@ -291,7 +292,7 @@ sleep 2
 ip netns exec ns_cli_ent ip addr add 192.168.4.10/24 dev wlan_cli_ent
 ip netns exec ns_cli_ent sh -c "while true; do ping -i 1 192.168.4.1 > /dev/null 2>&1; done" &
 
-# CLIENTES WEP (2 Clientes generando IVs continuos mediante PING acelerado)
+# CLIENTES WEP (Generación continua de peticiones ARP Broadcast)
 mkdir -p /var/run/wpa_supplicant_wep
 ip netns exec ns_cli1_wep wpa_supplicant -B -Dnl80211 -i wlan_cli1_wep -c "$LAB_DIR/wep/wpa.conf"
 ip netns exec ns_cli2_wep wpa_supplicant -B -Dnl80211 -i wlan_cli2_wep -c "$LAB_DIR/wep/wpa.conf"
@@ -299,9 +300,9 @@ sleep 2
 ip netns exec ns_cli1_wep ip addr add 192.168.5.10/24 dev wlan_cli1_wep
 ip netns exec ns_cli2_wep ip addr add 192.168.5.20/24 dev wlan_cli2_wep
 
-# Generación continua de IVs (Ping cada 0.1 segundos entre clientes y AP)
-ip netns exec ns_cli1_wep sh -c "while true; do ping -i 0.1 192.168.5.1 > /dev/null 2>&1; done" &
-ip netns exec ns_cli2_wep sh -c "while true; do ping -i 0.1 192.168.5.1 > /dev/null 2>&1; done" &
+# Bucle continuo: flush de caché ARP + arping broadcast para forzar tramas ARP
+ip netns exec ns_cli1_wep sh -c "while true; do ip neigh flush all dev wlan_cli1_wep >/dev/null 2>&1; arping -c 1 -I wlan_cli1_wep -b 192.168.5.1 > /dev/null 2>&1; sleep 0.5; done" &
+ip netns exec ns_cli2_wep sh -c "while true; do ip neigh flush all dev wlan_cli2_wep >/dev/null 2>&1; arping -c 1 -I wlan_cli2_wep -b 192.168.5.1 > /dev/null 2>&1; sleep 0.5; done" &
 
 sleep 1
 
@@ -318,5 +319,5 @@ echo " - he_open       (Ch 1)  -> Captura HTTP POST (Texto plano)"
 echo " - he_wpa2       (Ch 6)  -> Handshake 4-Way (Clave: dragonfly)"
 echo " - he_pmkid      (Ch 11) -> Ataque PMKID Clientless (Clave: chocolate)"
 echo " - he_enterprise (Ch 3)  -> Autenticación EAP-PEAP (Usuario: student_user@domain.lab)"
-echo " - he_wep        (Ch 9)  -> Recolección de IVs (Clave: 12345678901234567890123456)"
+echo " - he_wep        (Ch 9)  -> Recolección de IVs / Reinyección ARP (Clave: 12345678901234567890123456)"
 echo "=========================================================================="
