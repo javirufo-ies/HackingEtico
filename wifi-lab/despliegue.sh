@@ -300,9 +300,10 @@ sleep 2
 ip netns exec ns_cli1_wep ip addr add 192.168.5.10/24 dev wlan_cli1_wep
 ip netns exec ns_cli2_wep ip addr add 192.168.5.20/24 dev wlan_cli2_wep
 
-# Bucle continuo: flush de caché ARP + arping broadcast para forzar tramas ARP
-ip netns exec ns_cli1_wep sh -c "while true; do ip neigh flush all dev wlan_cli1_wep >/dev/null 2>&1; arping -c 1 -I wlan_cli1_wep -b 192.168.5.1 > /dev/null 2>&1; sleep 0.5; done" &
-ip netns exec ns_cli2_wep sh -c "while true; do ip neigh flush all dev wlan_cli2_wep >/dev/null 2>&1; arping -c 1 -I wlan_cli2_wep -b 192.168.5.1 > /dev/null 2>&1; sleep 0.5; done" &
+# Bucle continuo: flush de caché ARP + arping broadcast para forzar tramas ARP. Hago ping a una IP desconocida para evitar cacheo de arp
+ip netns exec ns_cli1_wep sh -c "while true; do ip neigh flush all dev wlan_cli1_wep >/dev/null 2>&1; ping -c1 -W1 192.168.5.200 >/dev/null 2>&1; sleep 0.3; done" &
+ip netns exec ns_cli2_wep sh -c "while true; do ip neigh flush all dev wlan_cli2_wep >/dev/null 2>&1; ping -c1 -W1 192.168.5.201 >/dev/null 2>&1; sleep 0.3; done" &
+
 
 sleep 1
 
