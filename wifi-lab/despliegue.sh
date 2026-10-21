@@ -2,6 +2,10 @@
 
 # ==============================================================================
 # SCRIPT DE DESPLIEGUE DEFINITIVO Y REALISTA - LAB WI-FI (mac80211_hwsim)
+#   - 20 radios virtuales
+#   - Interfaces de ALUMNO: wlan0 .. wlan6
+#   - Escenario PMKID CON clientes : he_pmkid
+#   - Escenario PMKID SIN clientes : he_pmkid_nc  (no clientes / clientless)
 # ==============================================================================
 
 set -e
@@ -36,8 +40,8 @@ modprobe -r mac80211_hwsim 2>/dev/null || true
 
 sleep 2
 
-echo "[+] 2. Cargando mac80211_hwsim (16 radios)..."
-modprobe mac80211_hwsim radios=16
+echo "[+] 2. Cargando mac80211_hwsim (21 radios)..."
+modprobe mac80211_hwsim radios=21
 sleep 2
 
 rfkill unblock wifi 2>/dev/null || true
@@ -45,37 +49,49 @@ rfkill unblock all 2>/dev/null || true
 
 echo "[+] 3. Asignando nombres de interfaz..."
 
+# 7 interfaces para el alumno (wlan0..wlan6) + 13 para el laboratorio = 20
 TARGETS=(
-  "wlan0" "wlan1" "wlan2" "wlan3"
+  "wlan0" "wlan1" "wlan2" "wlan3" "wlan4" "wlan5" "wlan6"
   "wlan_ap_open" "wlan_cli_open"
   "wlan_ap_wpa2" "wlan_cli1_wpa2" "wlan_cli2_wpa2"
   "wlan_ap_pmkid" "wlan_cli1_pmkid"
+  "wlan_ap_pmk_nc" "wlan_cl_pmk_nc"
   "wlan_ap_ent" "wlan_cli_ent"
   "wlan_ap_wep" "wlan_cli1_wep" "wlan_cli2_wep"
 )
 
 mapfile -t HW_IFS < <(ip link show | grep -oP '(?<=: )\b(wlan|wfx)\d+\b' | sort -V)
 
-if [ "${#HW_IFS[@]}" -lt 16 ]; then
-    echo "[-] ERROR: Se esperaban 16 interfaces inalámbricas, pero se detectaron ${#HW_IFS[@]}."
+if [ "${#HW_IFS[@]}" -lt 21 ]; then
+    echo "[-] ERROR: Se esperaban 21 interfaces inalámbricas, pero se detectaron ${#HW_IFS[@]}."
     exit 1
 fi
 
 for idx in "${!TARGETS[@]}"; do
   orig_if="${HW_IFS[$idx]}"
   target="${TARGETS[$idx]}"
-  
+
+  # Aviso temprano: Linux limita los nombres de interfaz a 15 caracteres.
+  if [ "${#target}" -gt 15 ]; then
+    echo "[-] ERROR: '$target' tiene ${#target} caracteres (máx. 15). Acorta el nombre."
+    exit 1
+  fi
+
   if [ -n "$orig_if" ] && [ "$orig_if" != "$target" ]; then
     ip link set "$orig_if" down 2>/dev/null || true
-    ip link set "$orig_if" name "$target" 2>/dev/null || true
-    echo "  [✓] $orig_if -> $target"
+    if ip link set "$orig_if" name "$target" 2>/dev/null; then
+      echo "  [✓] $orig_if -> $target"
+    else
+      echo "[-] ERROR: no se pudo renombrar $orig_if -> $target"
+      exit 1
+    fi
   fi
 done
 
 sleep 1
 
 echo "[+] 4. Generando configuraciones..."
-mkdir -p "$LAB_DIR"/{open,wpa2,pmkid,enterprise,wep}
+mkdir -p "$LAB_DIR"/{open,wpa2,pmkid,pmkid_nc,enterprise,wep}
 
 # ------------------------------------------------------------------------------
 # ESCENARIO 1: OPEN
@@ -100,7 +116,9 @@ network={
 EOF
 
 # ------------------------------------------------------------------------------
-# ESCENARIO 2: WPA2 (PMK precalculada para "dragonfly")
+# ESCENARIO 2: WPA2
+#   Clave almacenada como PMK (wpa_psk, 64 hex = PBKDF2(passphrase, SSID)).
+#   La passphrase en claro NO aparece en el script (anti-cheat con root).
 # ------------------------------------------------------------------------------
 cat << 'EOF' > "$LAB_DIR/wpa2/hostapd.conf"
 interface=wlan_ap_wpa2
@@ -111,7 +129,7 @@ channel=6
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=6c80242a9fb6f890f5d7be465e921d7b172a11bf3721349b19e7c52b7245bb1f
+wpa_psk=3dc00023cc4f8e283e2c2fb51c393f60a04d96f10797945dac73e2a92f18c088
 EOF
 
 cat << 'EOF' > "$LAB_DIR/wpa2/wpa.conf"
@@ -119,12 +137,15 @@ ctrl_interface=/var/run/wpa_supplicant_wpa2
 p2p_disabled=1
 network={
     ssid="he_wpa2"
-    psk=6c80242a9fb6f890f5d7be465e921d7b172a11bf3721349b19e7c52b7245bb1f
+    psk=3dc00023cc4f8e283e2c2fb51c393f60a04d96f10797945dac73e2a92f18c088
 }
 EOF
 
 # ------------------------------------------------------------------------------
-# ESCENARIO 3: PMKID (PMK precalculada para "chocolate")
+# ESCENARIO 3a: PMKID CON CLIENTES
+#   Clave como PMK (wpa_psk). Hay una estación asociada generando tráfico: el
+#   alumno puede capturar el PMKID en la asociación o, tras un deauth, el
+#   handshake 4-way. El comportamiento por radio es idéntico al de passphrase.
 # ------------------------------------------------------------------------------
 cat << 'EOF' > "$LAB_DIR/pmkid/hostapd.conf"
 interface=wlan_ap_pmkid
@@ -135,7 +156,7 @@ channel=11
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=b91c893041ee2b450516eb4dfd74eb224422e1b12204d6e64d7df6bc5ccbf40f
+wpa_psk=4251bbd9ad8c453e3172cb49328778fd4394351e543b41c451cc105b7a7af155
 okc=1
 EOF
 
@@ -144,9 +165,38 @@ ctrl_interface=/var/run/wpa_supplicant_pmkid
 p2p_disabled=1
 network={
     ssid="he_pmkid"
-    psk=b91c893041ee2b450516eb4dfd74eb224422e1b12204d6e64d7df6bc5ccbf40f
+    psk=4251bbd9ad8c453e3172cb49328778fd4394351e543b41c451cc105b7a7af155
 }
 EOF
+
+# ------------------------------------------------------------------------------
+# ESCENARIO 3b: PMKID SIN CLIENTES / NO CLIENTES (clientless)
+#   Clave como PMK (wpa_psk). AP sin ninguna estación asociada a propósito: el
+#   AP incluye el PMKID en el mensaje M1 (RSN) durante la asociación, así que el
+#   alumno debe provocar él mismo la asociación para que el AP emita ese M1.
+# ------------------------------------------------------------------------------
+cat << 'EOF' > "$LAB_DIR/pmkid_nc/hostapd.conf"
+interface=wlan_ap_pmk_nc
+driver=nl80211
+ssid=he_pmkid_nc
+hw_mode=g
+channel=4
+wpa=2
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+wpa_psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
+okc=1
+EOF
+
+cat << 'EOF' > "$LAB_DIR/pmkid_nc/wpa.conf"
+ctrl_interface=/var/run/wpa_supplicant_pmkid_nc
+p2p_disabled=1
+network={
+    ssid="he_pmkid_nc"
+    psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
+}
+EOF
+
 
 # ------------------------------------------------------------------------------
 # ESCENARIO 4: ENTERPRISE (802.1X / EAP-PEAP)
@@ -211,6 +261,7 @@ NAMESPACES=(
   "ns_ap_open" "ns_cli_open"
   "ns_ap_wpa2" "ns_cli1_wpa2" "ns_cli2_wpa2"
   "ns_ap_pmkid" "ns_cli1_pmkid"
+  "ns_ap_pmkid_nc" "ns_cl_pmkid_nc"
   "ns_ap_ent" "ns_cli_ent"
   "ns_ap_wep" "ns_cli1_wep" "ns_cli2_wep"
 )
@@ -219,6 +270,7 @@ IFS_TO_MOVE=(
   "wlan_ap_open" "wlan_cli_open"
   "wlan_ap_wpa2" "wlan_cli1_wpa2" "wlan_cli2_wpa2"
   "wlan_ap_pmkid" "wlan_cli1_pmkid"
+  "wlan_ap_pmk_nc" "wlan_cl_pmk_nc"
   "wlan_ap_ent" "wlan_cli_ent"
   "wlan_ap_wep" "wlan_cli1_wep" "wlan_cli2_wep"
 )
@@ -226,32 +278,34 @@ IFS_TO_MOVE=(
 for idx in "${!NAMESPACES[@]}"; do
   ns="${NAMESPACES[$idx]}"
   iface="${IFS_TO_MOVE[$idx]}"
-  
+
   ip netns add "$ns"
   phy_dev=$(iw dev "$iface" info | grep wiphy | awk '{print "phy"$2}')
   iw phy "$phy_dev" set netns name "$ns"
-  
+
   ip netns exec "$ns" ip link set "$iface" up
   ip netns exec "$ns" ip link set lo up
 done
 
-# Activar interfaces del alumno en el namespace principal (wlan0 a wlan3)
-for i in {0..3}; do
+# Activar interfaces del alumno en el namespace principal (wlan0 a wlan6)
+for i in {0..6}; do
   ip link set "wlan$i" up 2>/dev/null || true
 done
 
 echo "[+] 6. Arrancando Puntos de Acceso (APs)..."
-ip netns exec ns_ap_open hostapd -B "$LAB_DIR/open/hostapd.conf"
-ip netns exec ns_ap_wpa2 hostapd -B "$LAB_DIR/wpa2/hostapd.conf"
-ip netns exec ns_ap_pmkid hostapd -B "$LAB_DIR/pmkid/hostapd.conf"
-ip netns exec ns_ap_ent hostapd -B "$LAB_DIR/enterprise/hostapd.conf"
-ip netns exec ns_ap_wep hostapd -B "$LAB_DIR/wep/hostapd.conf"
+ip netns exec ns_ap_open     hostapd -B "$LAB_DIR/open/hostapd.conf"
+ip netns exec ns_ap_wpa2     hostapd -B "$LAB_DIR/wpa2/hostapd.conf"
+ip netns exec ns_ap_pmkid    hostapd -B "$LAB_DIR/pmkid/hostapd.conf"
+ip netns exec ns_ap_pmkid_nc hostapd -B "$LAB_DIR/pmkid_nc/hostapd.conf"
+ip netns exec ns_ap_ent      hostapd -B "$LAB_DIR/enterprise/hostapd.conf"
+ip netns exec ns_ap_wep      hostapd -B "$LAB_DIR/wep/hostapd.conf"
 
-ip netns exec ns_ap_open ip addr add 192.168.1.1/24 dev wlan_ap_open
-ip netns exec ns_ap_wpa2 ip addr add 192.168.2.1/24 dev wlan_ap_wpa2
-ip netns exec ns_ap_pmkid ip addr add 192.168.3.1/24 dev wlan_ap_pmkid
-ip netns exec ns_ap_ent ip addr add 192.168.4.1/24 dev wlan_ap_ent
-ip netns exec ns_ap_wep ip addr add 192.168.5.1/24 dev wlan_ap_wep
+ip netns exec ns_ap_open     ip addr add 192.168.1.1/24 dev wlan_ap_open
+ip netns exec ns_ap_wpa2     ip addr add 192.168.2.1/24 dev wlan_ap_wpa2
+ip netns exec ns_ap_pmkid    ip addr add 192.168.3.1/24 dev wlan_ap_pmkid
+ip netns exec ns_ap_pmkid_nc ip addr add 192.168.6.1/24 dev wlan_ap_pmk_nc
+ip netns exec ns_ap_ent      ip addr add 192.168.4.1/24 dev wlan_ap_ent
+ip netns exec ns_ap_wep      ip addr add 192.168.5.1/24 dev wlan_ap_wep
 
 sleep 2
 
@@ -278,12 +332,28 @@ ip netns exec ns_cli2_wpa2 ip addr add 192.168.2.20/24 dev wlan_cli2_wpa2
 ip netns exec ns_cli1_wpa2 sh -c "while true; do ping -i 1 192.168.2.1 > /dev/null 2>&1; done" &
 ip netns exec ns_cli2_wpa2 sh -c "while true; do ping -i 1 192.168.2.1 > /dev/null 2>&1; done" &
 
-# CLIENTE PMKID
+# CLIENTE PMKID (CON cliente) -> escenario he_pmkid
 mkdir -p /var/run/wpa_supplicant_pmkid
 ip netns exec ns_cli1_pmkid wpa_supplicant -B -Dnl80211 -i wlan_cli1_pmkid -c "$LAB_DIR/pmkid/wpa.conf"
 sleep 2
 ip netns exec ns_cli1_pmkid ip addr add 192.168.3.10/24 dev wlan_cli1_pmkid
 ip netns exec ns_cli1_pmkid sh -c "while true; do ping -i 1 192.168.3.1 > /dev/null 2>&1; done" &
+
+# ESCENARIO PMKID NO CLIENTES (he_pmkid_nc): SIN cliente a propósito. Se necesita que al menos un cliente haya conectado para cachear la PMKID
+ip netns exec ns_cl_pmkid_nc wpa_supplicant -B -Dnl80211 -i wlan_cl_pmk_nc -c "$LAB_DIR/pmkid_nc/wpa.conf"
+sleep 2
+ip netns exec ns_cl_pmkid_nc ip addr add 192.168.6.10/24 dev wlan_cl_pmk_nc
+ip netns exec ns_cl_pmkid_nc sh -c "ping -c 4 192.168.6.1 > /dev/null 2>&1" &
+# Matar wpa_supplicant del cliente de este escenario
+ip netns exec ns_cl_pmkid_nc pkill -f wpa_supplicant
+# Forzar desconexión por si acaso
+ip netns exec ns_cl_pmkid_nc iw dev wlan_cl_pmk_nc disconnect
+# Verificar que está desconectado (debe decir "Not connected")
+ip netns exec ns_cl_pmkid_nc iw dev wlan_cl_pmk_nc link
+
+
+
+
 
 # CLIENTE ENTERPRISE
 mkdir -p /var/run/wpa_supplicant_ent
@@ -300,25 +370,45 @@ sleep 2
 ip netns exec ns_cli1_wep ip addr add 192.168.5.10/24 dev wlan_cli1_wep
 ip netns exec ns_cli2_wep ip addr add 192.168.5.20/24 dev wlan_cli2_wep
 
-# Bucle continuo: flush de caché ARP + arping broadcast para forzar tramas ARP. Hago ping a una IP desconocida para evitar cacheo de arp
+# Bucle continuo: flush de caché ARP + ping a IP inexistente para forzar ARP broadcast
+# (ping a una IP SIN dueño => nunca se resuelve => broadcast perpetuo, ideal para aireplay -3)
 ip netns exec ns_cli1_wep sh -c "while true; do ip neigh flush all dev wlan_cli1_wep >/dev/null 2>&1; ping -c1 -W1 192.168.5.200 >/dev/null 2>&1; sleep 0.3; done" &
 ip netns exec ns_cli2_wep sh -c "while true; do ip neigh flush all dev wlan_cli2_wep >/dev/null 2>&1; ping -c1 -W1 192.168.5.201 >/dev/null 2>&1; sleep 0.3; done" &
 
-
 sleep 1
 
+# ------------------------------------------------------------------------------
+# Resumen de BSSID REALES (se leen del sistema; evita adivinar la MAC del AP)
+# ------------------------------------------------------------------------------
+get_bssid() { ip netns exec "$1" cat "/sys/class/net/$2/address" 2>/dev/null; }
+
+BSSID_OPEN=$(get_bssid ns_ap_open     wlan_ap_open)
+BSSID_WPA2=$(get_bssid ns_ap_wpa2     wlan_ap_wpa2)
+BSSID_PMKID=$(get_bssid ns_ap_pmkid    wlan_ap_pmkid)
+BSSID_PMKIDNC=$(get_bssid ns_ap_pmkid_nc wlan_ap_pmk_nc)
+BSSID_ENT=$(get_bssid ns_ap_ent      wlan_ap_ent)
+BSSID_WEP=$(get_bssid ns_ap_wep      wlan_ap_wep)
+
 echo "[+] 9. Eliminando archivos de configuración en disco (Anti-Cheat)..."
-rm -f "$LAB_DIR"/open/*.conf "$LAB_DIR"/wpa2/*.conf "$LAB_DIR"/pmkid/*.conf "$LAB_DIR"/enterprise/*.conf "$LAB_DIR"/wep/*.conf 2>/dev/null || true
+rm -f "$LAB_DIR"/open/*.conf "$LAB_DIR"/wpa2/*.conf "$LAB_DIR"/pmkid/*.conf \
+      "$LAB_DIR"/pmkid_nc/*.conf "$LAB_DIR"/enterprise/*.conf "$LAB_DIR"/wep/*.conf 2>/dev/null || true
 
 echo ""
 echo "=========================================================================="
-echo " [✓] LABORATORIO WI-FI COMPLETO (5 ESCENARIOS CON CLIENTES ACTIVOS)"
+echo " [✓] LABORATORIO WI-FI COMPLETO (6 ESCENARIOS)"
 echo "=========================================================================="
-echo "Interfaces para el ALUMNO: wlan0 a wlan3"
-echo "Escenarios activos:"
-echo " - he_open       (Ch 1)  -> Captura HTTP POST (Texto plano)"
-echo " - he_wpa2       (Ch 6)  -> Handshake 4-Way (Clave: dragonfly)"
-echo " - he_pmkid      (Ch 11) -> Ataque PMKID Clientless (Clave: chocolate)"
-echo " - he_enterprise (Ch 3)  -> Autenticación EAP-PEAP (Usuario: student_user@domain.lab)"
-echo " - he_wep        (Ch 9)  -> Recolección de IVs / Reinyección ARP (Clave: 12345678901234567890123456)"
+echo "Interfaces para el ALUMNO: wlan0 a wlan6"
+echo ""
+echo "Escenarios activos (BSSID real detectada):"
+echo " - he_open       (Ch 1 , BSSID $BSSID_OPEN)   -> Captura HTTP POST (texto plano)"
+echo " - he_wpa2       (Ch 6 , BSSID $BSSID_WPA2)   -> Handshake 4-Way     (clave oculta: crackear)"
+echo " - he_pmkid      (Ch 11, BSSID $BSSID_PMKID)  -> PMKID CON clientes  (clave oculta: crackear)"
+echo " - he_pmkid_nc   (Ch 4 , BSSID $BSSID_PMKIDNC)-> PMKID SIN clientes  (clave oculta: crackear)"
+echo " - he_enterprise (Ch 3 , BSSID $BSSID_ENT)    -> EAP-PEAP            (Usuario: student_user@domain.lab)"
+echo " - he_wep        (Ch 9 , BSSID $BSSID_WEP)    -> IVs / Reinyeccion ARP"
+echo "=========================================================================="
+echo "Las claves WPA2 se almacenan como PMK (wpa_psk hex): no son visibles en"
+echo "claro ni en el script ni en los .conf. El alumno DEBE crackearlas."
+echo "NOTA: al pasar a 20 radios, las BSSID cambian respecto a la version de 16."
+echo "      Usa SIEMPRE las BSSID mostradas arriba (o airodump-ng) para atacar."
 echo "=========================================================================="
