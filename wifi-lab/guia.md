@@ -12,7 +12,7 @@
 ## 0. Puesta en marcha
 
 ```bash
-sudo ./despliega.sh
+sudo ./despliegue.sh
 ```
 
 Al terminar, el script imprime un cuadro con el **SSID, canal, BSSID real y
