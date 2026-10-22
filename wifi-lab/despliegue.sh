@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # SCRIPT DE DESPLIEGUE DEFINITIVO Y REALISTA - LAB WI-FI (mac80211_hwsim)
-#   - 20 radios virtuales
+#   - 21 radios virtuales
 #   - Interfaces de ALUMNO: wlan0 .. wlan6
 #   - Escenario PMKID CON clientes : he_pmkid
 #   - Escenario PMKID SIN clientes : he_pmkid_nc  (no clientes / clientless)
@@ -49,7 +49,7 @@ rfkill unblock all 2>/dev/null || true
 
 echo "[+] 3. Asignando nombres de interfaz..."
 
-# 7 interfaces para el alumno (wlan0..wlan6) + 13 para el laboratorio = 20
+# 7 interfaces para el alumno (wlan0..wlan6) + 14 para el laboratorio = 21
 TARGETS=(
   "wlan0" "wlan1" "wlan2" "wlan3" "wlan4" "wlan5" "wlan6"
   "wlan_ap_open" "wlan_cli_open"
@@ -171,9 +171,11 @@ EOF
 
 # ------------------------------------------------------------------------------
 # ESCENARIO 3b: PMKID SIN CLIENTES / NO CLIENTES (clientless)
-#   Clave como PMK (wpa_psk). AP sin ninguna estación asociada a propósito: el
-#   AP incluye el PMKID en el mensaje M1 (RSN) durante la asociación, así que el
-#   alumno debe provocar él mismo la asociación para que el AP emita ese M1.
+#   Clave como PMK (wpa_psk). AP sin ninguna estación asociada de forma
+#   permanente: el alumno debe provocar él mismo la asociación para que el AP
+#   emita el M1 del 4-way. Con PSK el PMKID depende de la MAC del alumno
+#   (HMAC-SHA1-128(PMK, "PMK Name" | MAC_AP | MAC_STA)), así que no depende
+#   de que otro cliente se haya conectado antes.
 # ------------------------------------------------------------------------------
 cat << 'EOF' > "$LAB_DIR/pmkid_nc/hostapd.conf"
 interface=wlan_ap_pmk_nc
@@ -339,21 +341,35 @@ sleep 2
 ip netns exec ns_cli1_pmkid ip addr add 192.168.3.10/24 dev wlan_cli1_pmkid
 ip netns exec ns_cli1_pmkid sh -c "while true; do ping -i 1 192.168.3.1 > /dev/null 2>&1; done" &
 
-# ESCENARIO PMKID NO CLIENTES (he_pmkid_nc): SIN cliente a propósito. Se necesita que al menos un cliente haya conectado para cachear la PMKID
+# ESCENARIO PMKID NO CLIENTES (he_pmkid_nc): cliente efímero que asocia una vez
+# (comprueba que el AP funciona) y se desconecta. Al acabar el AP queda SIN clientes.
+mkdir -p /var/run/wpa_supplicant_pmkid_nc
+CTRL_NC="/var/run/wpa_supplicant_pmkid_nc"
 ip netns exec ns_cl_pmkid_nc wpa_supplicant -B -Dnl80211 -i wlan_cl_pmk_nc -c "$LAB_DIR/pmkid_nc/wpa.conf"
-sleep 2
-ip netns exec ns_cl_pmkid_nc ip addr add 192.168.6.10/24 dev wlan_cl_pmk_nc
-ip netns exec ns_cl_pmkid_nc sh -c "ping -c 4 192.168.6.1 > /dev/null 2>&1" &
-# Matar wpa_supplicant del cliente de este escenario
-ip netns exec ns_cl_pmkid_nc pkill -f wpa_supplicant
-# Forzar desconexión por si acaso
-ip netns exec ns_cl_pmkid_nc iw dev wlan_cl_pmk_nc disconnect
+
+# Esperar a que complete el 4-way handshake (máx. 15 s)
+NC_OK=0
+for _ in $(seq 1 15); do
+  if ip netns exec ns_cl_pmkid_nc wpa_cli -p "$CTRL_NC" -i wlan_cl_pmk_nc status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then
+    NC_OK=1
+    break
+  fi
+  sleep 1
+done
+if [ "$NC_OK" -eq 1 ]; then
+  echo "  [✓] Cliente he_pmkid_nc completó el handshake"
+else
+  echo "  [!] Cliente he_pmkid_nc NO completó el handshake"
+fi
+
+# Terminar SOLO este wpa_supplicant. 'ip netns exec' NO aísla PIDs: un pkill
+# aquí mataría también los clientes de los demás escenarios.
+ip netns exec ns_cl_pmkid_nc wpa_cli -p "$CTRL_NC" -i wlan_cl_pmk_nc terminate > /dev/null 2>&1 || true
+sleep 1
+# Forzar desconexión por si acaso (falla si ya no hay enlace: se ignora)
+ip netns exec ns_cl_pmkid_nc iw dev wlan_cl_pmk_nc disconnect 2>/dev/null || true
 # Verificar que está desconectado (debe decir "Not connected")
-ip netns exec ns_cl_pmkid_nc iw dev wlan_cl_pmk_nc link
-
-
-
-
+ip netns exec ns_cl_pmkid_nc iw dev wlan_cl_pmk_nc link || true
 
 # CLIENTE ENTERPRISE
 mkdir -p /var/run/wpa_supplicant_ent
@@ -409,6 +425,6 @@ echo " - he_wep        (Ch 9 , BSSID $BSSID_WEP)    -> IVs / Reinyeccion ARP"
 echo "=========================================================================="
 echo "Las claves WPA2 se almacenan como PMK (wpa_psk hex): no son visibles en"
 echo "claro ni en el script ni en los .conf. El alumno DEBE crackearlas."
-echo "NOTA: al pasar a 20 radios, las BSSID cambian respecto a la version de 16."
+echo "NOTA: con 21 radios, las BSSID cambian respecto a versiones anteriores."
 echo "      Usa SIEMPRE las BSSID mostradas arriba (o airodump-ng) para atacar."
 echo "=========================================================================="
