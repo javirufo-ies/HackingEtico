@@ -312,13 +312,33 @@ if [ ! -x "$HOSTAPD_PMKID" ]; then
   fi
 fi
 
+# ------------------------------------------------------------------------------
+# hostapd del sistema para los escenarios open/wpa2/enterprise/wep.
+# Si no esta instalado, se instala; luego se resuelve su ruta completa
+# (bajo sudo, /usr/sbin puede no estar en el PATH).
+# ------------------------------------------------------------------------------
+if ! command -v hostapd >/dev/null 2>&1 && [ ! -x /usr/sbin/hostapd ]; then
+  echo "[!] hostapd no esta instalado. Instalandolo..."
+  apt-get update -qq
+  apt-get install -y -qq hostapd
+  # apt deja el servicio activo bloqueando la radio: se desactiva.
+  systemctl disable --now hostapd >/dev/null 2>&1 || true
+  systemctl unmask hostapd >/dev/null 2>&1 || true
+  rfkill unblock wifi 2>/dev/null || true
+fi
+HOSTAPD_SYS="$(command -v hostapd || echo /usr/sbin/hostapd)"
+if [ ! -x "$HOSTAPD_SYS" ]; then
+  echo "[-] ERROR: no se encuentra el binario hostapd tras intentar instalarlo."
+  exit 1
+fi
+
 echo "[+] 6. Arrancando Puntos de Acceso (APs)..."
-ip netns exec ns_ap_open     hostapd -B "$LAB_DIR/open/hostapd.conf"
-ip netns exec ns_ap_wpa2     hostapd -B "$LAB_DIR/wpa2/hostapd.conf"
+ip netns exec ns_ap_open     "$HOSTAPD_SYS" -B "$LAB_DIR/open/hostapd.conf"
+ip netns exec ns_ap_wpa2     "$HOSTAPD_SYS" -B "$LAB_DIR/wpa2/hostapd.conf"
 ip netns exec ns_ap_pmkid    "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid/hostapd.conf"
 ip netns exec ns_ap_pmkid_nc "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid_nc/hostapd.conf"
-ip netns exec ns_ap_ent      hostapd -B "$LAB_DIR/enterprise/hostapd.conf"
-ip netns exec ns_ap_wep      hostapd -B "$LAB_DIR/wep/hostapd.conf"
+ip netns exec ns_ap_ent      "$HOSTAPD_SYS" -B "$LAB_DIR/enterprise/hostapd.conf"
+ip netns exec ns_ap_wep      "$HOSTAPD_SYS" -B "$LAB_DIR/wep/hostapd.conf"
 
 ip netns exec ns_ap_open     ip addr add 192.168.1.1/24 dev wlan_ap_open
 ip netns exec ns_ap_wpa2     ip addr add 192.168.2.1/24 dev wlan_ap_wpa2

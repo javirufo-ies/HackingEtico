@@ -58,7 +58,13 @@ echo "    [OK] Parche aplicado"
 echo "[+] 4. Compilando..."
 cd "hostapd-$HOSTAPD_VER/hostapd"
 cp defconfig .config
-make -j"$(nproc)" > /dev/null
+# Warnings de APIs obsoletas de OpenSSL 3: se silencian y el log va a fichero.
+BUILD_LOG="/tmp/hostapd_pmkid_build.log"
+if ! make -j"$(nproc)" EXTRA_CFLAGS="-Wno-deprecated-declarations" > "$BUILD_LOG" 2>&1; then
+  echo "[-] ERROR al compilar. Ultimas lineas de $BUILD_LOG:"
+  tail -n 20 "$BUILD_LOG"
+  exit 1
+fi
 install -m 755 hostapd "$BIN_DEST"
 
 echo ""
