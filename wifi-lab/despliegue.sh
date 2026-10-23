@@ -186,7 +186,7 @@ channel=4
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
+wpa_psk=2890bb39a9b14fb9427bed953c7c105675c288e24d08fb7da8d56481ad6b00c9
 okc=1
 EOF
 
@@ -195,7 +195,7 @@ ctrl_interface=/var/run/wpa_supplicant_pmkid_nc
 p2p_disabled=1
 network={
     ssid="he_pmkid_nc"
-    psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
+    psk=2890bb39a9b14fb9427bed953c7c105675c288e24d08fb7da8d56481ad6b00c9
 }
 EOF
 
