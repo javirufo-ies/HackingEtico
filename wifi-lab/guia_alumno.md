@@ -39,11 +39,11 @@ sesión. Para desmontarlo todo: `sudo ./limpia.sh`.
 | SSID            | Canal | Seguridad | Qué tienes que conseguir |
 |-----------------|-------|-----------|--------------------------|
 | `he_open`       | 1     | Abierta   | Las credenciales que envía un cliente |
+| `he_wep`        | 9     | WEP       | La clave de la red |
 | `he_wpa2`       | 6     | WPA2-PSK  | La clave de la red |
 | `he_pmkid`      | 11    | WPA2-PSK  | La clave de la red |
 | `he_pmkid_nc`   | 4     | WPA2-PSK  | La clave de la red |
 | `he_enterprise` | 3     | WPA2-EAP  | La identidad del usuario y el método EAP |
-| `he_wep`        | 9     | WEP       | La clave de la red |
 
 En cada escenario debes investigar qué técnica es la adecuada, aplicarla y
 documentarla.
@@ -65,7 +65,21 @@ Hay un cliente conectado que inicia sesión periódicamente en una aplicación w
 
 ---
 
-## 2. `he_wpa2` — WPA2-PSK
+## 2. `he_wep` — WEP
+
+Red WEP con clientes conectados que generan tráfico.
+
+**Objetivo:** obtener la clave de la red.
+
+**Preguntas:**
+
+1. ¿Por qué WEP se puede romper independientemente de lo robusta que sea la
+   clave?
+2. ¿Qué has hecho para acelerar el ataque y por qué funciona?
+
+---
+
+## 3. `he_wpa2` — WPA2-PSK
 
 Red WPA2 personal con clientes conectados.
 
@@ -81,7 +95,7 @@ Red WPA2 personal con clientes conectados.
 
 ---
 
-## 3. `he_pmkid` — WPA2-PSK
+## 4. `he_pmkid` — WPA2-PSK
 
 Red WPA2 personal con un cliente conectado.
 
@@ -95,7 +109,7 @@ Red WPA2 personal con un cliente conectado.
 
 ---
 
-## 4. `he_pmkid_nc` — WPA2-PSK sin clientes
+## 5. `he_pmkid_nc` — WPA2-PSK sin clientes
 
 Red WPA2 personal **sin ningún cliente conectado**.
 
@@ -116,7 +130,7 @@ Red WPA2 personal **sin ningún cliente conectado**.
 
 ---
 
-## 5. `he_enterprise` — WPA2-Enterprise
+## 6. `he_enterprise` — WPA2-Enterprise
 
 Red WPA2 corporativa (802.1X) con un cliente conectado.
 
@@ -128,20 +142,6 @@ autentica el usuario y el **método EAP** que usa la red.
 1. ¿Qué información de la autenticación viaja sin cifrar?
 2. Describe qué ataque permitiría capturar las credenciales del usuario en este
    tipo de red y qué configuración del cliente lo evitaría.
-
----
-
-## 6. `he_wep` — WEP
-
-Red WEP con clientes conectados que generan tráfico.
-
-**Objetivo:** obtener la clave de la red.
-
-**Preguntas:**
-
-1. ¿Por qué WEP se puede romper independientemente de lo robusta que sea la
-   clave?
-2. ¿Qué has hecho para acelerar el ataque y por qué funciona?
 
 ---
 
