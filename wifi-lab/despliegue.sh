@@ -129,7 +129,7 @@ channel=6
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=3dc00023cc4f8e283e2c2fb51c393f60a04d96f10797945dac73e2a92f18c088
+wpa_psk=bbbe6ee5730c9b7c90caaec0fdebaa3e89bd08eb7b9e7dcd76fb344b8b1c68c7
 EOF
 
 cat << 'EOF' > "$LAB_DIR/wpa2/wpa.conf"
@@ -137,7 +137,7 @@ ctrl_interface=/var/run/wpa_supplicant_wpa2
 p2p_disabled=1
 network={
     ssid="he_wpa2"
-    psk=3dc00023cc4f8e283e2c2fb51c393f60a04d96f10797945dac73e2a92f18c088
+    psk=bbbe6ee5730c9b7c90caaec0fdebaa3e89bd08eb7b9e7dcd76fb344b8b1c68c7
 }
 EOF
 
@@ -156,7 +156,7 @@ channel=11
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=2890bb39a9b14fb9427bed953c7c105675c288e24d08fb7da8d56481ad6b00c9
+wpa_psk=d7a26f04324d45ece8ecbb98705c2e9d06e5787c9a1a7ebdc0f12dea8d6b448f
 okc=1
 EOF
 
@@ -165,7 +165,7 @@ ctrl_interface=/var/run/wpa_supplicant_pmkid
 p2p_disabled=1
 network={
     ssid="he_pmkid"
-    psk=2890bb39a9b14fb9427bed953c7c105675c288e24d08fb7da8d56481ad6b00c9
+    psk=d7a26f04324d45ece8ecbb98705c2e9d06e5787c9a1a7ebdc0f12dea8d6b448f
 }
 EOF
 
@@ -186,7 +186,7 @@ channel=4
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=2890bb39a9b14fb9427bed953c7c105675c288e24d08fb7da8d56481ad6b00c9
+wpa_psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
 okc=1
 EOF
 
@@ -195,7 +195,7 @@ ctrl_interface=/var/run/wpa_supplicant_pmkid_nc
 p2p_disabled=1
 network={
     ssid="he_pmkid_nc"
-    psk=2890bb39a9b14fb9427bed953c7c105675c288e24d08fb7da8d56481ad6b00c9
+    psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
 }
 EOF
 
@@ -242,7 +242,7 @@ hw_mode=g
 channel=9
 auth_algs=1
 wep_default_key=0
-wep_key0=12345678901234567890123456
+wep_key0=696c6f76656d7966616d696c79
 EOF
 
 cat << 'EOF' > "$LAB_DIR/wep/wpa.conf"
@@ -251,7 +251,7 @@ p2p_disabled=1
 network={
     ssid="he_wep"
     key_mgmt=NONE
-    wep_key0=12345678901234567890123456
+    wep_key0=696c6f76656d7966616d696c79
     wep_tx_keyidx=0
     auth_alg=OPEN
 }
