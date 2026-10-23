@@ -257,7 +257,7 @@ network={
 EOF
 
 # ------------------------------------------------------------------------------
-# ESCENARIO 5: WEP (Clave WEP de 128 bits: 12345678901234567890123456)
+# ESCENARIO 5: WEP (clave de 104 bits en hex, 13 caracteres ASCII)
 # ------------------------------------------------------------------------------
 cat << 'EOF' > "$LAB_DIR/wep/hostapd.conf"
 interface=wlan_ap_wep

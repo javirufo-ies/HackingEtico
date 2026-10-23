@@ -7,8 +7,8 @@ Uso:
     ./calc_pmk.py <SSID> <passphrase>
 
 Ejemplos:
-    ./calc_pmk.py he_wpa2 dragonfly
-    ./calc_pmk.py he_pmkid chocolate
+    ./calc_pmk.py MiRed contraseña123
+    ./calc_pmk.py OtraRed otraclave2026
 """
 
 import sys
@@ -25,7 +25,7 @@ def calcular_pmk(ssid: str, passphrase: str) -> str:
 def main() -> int:
     if len(sys.argv) != 3:
         print(f"Uso: {sys.argv[0]} <SSID> <passphrase>", file=sys.stderr)
-        print(f"Ejemplo: {sys.argv[0]} he_wpa2 dragonfly", file=sys.stderr)
+        print(f"Ejemplo: {sys.argv[0]} MiRed contraseña123", file=sys.stderr)
         return 1
 
     ssid = sys.argv[1]
