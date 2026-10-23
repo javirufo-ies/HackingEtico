@@ -60,7 +60,19 @@ for ns in $(ip netns list | awk '{print $1}'); do
     fi
 done
 
-airmon-ng check kill 2>/dev/null || true
+# NetworkManager NO debe gestionar las radios virtuales (escanearía y cambiaría
+# de canal). Se excluyen por driver, así la wifi real del host no se ve afectada.
+# No se usa 'airmon-ng check kill': pararía NetworkManager (red del host) y,
+# como 'ip netns exec' no aísla PIDs, mataría también a los clientes del lab.
+NM_CONF="/etc/NetworkManager/conf.d/99-wifi-lab.conf"
+if [ -d /etc/NetworkManager/conf.d ]; then
+  cat << 'EOF' > "$NM_CONF"
+[keyfile]
+unmanaged-devices+=driver:mac80211_hwsim
+EOF
+  nmcli general reload conf 2>/dev/null || systemctl reload NetworkManager 2>/dev/null || true
+fi
+
 modprobe -r mac80211_hwsim 2>/dev/null || true
 
 sleep 2
@@ -111,6 +123,11 @@ for idx in "${!TARGETS[@]}"; do
       exit 1
     fi
   fi
+done
+
+# Refuerzo en caliente por si NetworkManager no ha leído la configuración
+for target in "${TARGETS[@]}"; do
+  nmcli dev set "$target" managed no 2>/dev/null || true
 done
 
 sleep 1

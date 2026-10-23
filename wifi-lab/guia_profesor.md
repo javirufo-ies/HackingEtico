@@ -30,11 +30,19 @@ Para desmontarlo todo: `sudo ./limpia.sh`.
 ### Poner una interfaz en modo monitor
 
 ```bash
-sudo airmon-ng check kill          # (ya lo hace el script, por si acaso)
+sudo airmon-ng start wlan0 <canal>   # crea wlan0mon
+# o, a mano:
 sudo ip link set wlan0 down
 sudo iw dev wlan0 set type monitor
 sudo ip link set wlan0 up
 ```
+
+**No uses `airmon-ng check kill`.** El script ya excluye las radios virtuales
+de NetworkManager, así que no hay nada que matar. Además, `ip netns exec` no
+aísla PIDs: `check kill` mataría los `wpa_supplicant` de los clientes del lab y
+los escenarios se quedarían sin tráfico (hay que volver a desplegar).
+`airmon-ng start` mostrará esos procesos como "could cause trouble": es solo un
+aviso y se puede ignorar.
 
 ### Localizar objetivos y fijar canal
 
