@@ -294,11 +294,29 @@ for i in {0..6}; do
   ip link set "wlan$i" up 2>/dev/null || true
 done
 
+# ------------------------------------------------------------------------------
+# hostapd parcheado para los escenarios PMKID (he_pmkid, he_pmkid_nc).
+# El hostapd de serie no emite el PMKID en el M1 con WPA-PSK; se compila uno
+# parcheado con compila_hostapd_pmkid.sh (en la misma carpeta que este script).
+# ------------------------------------------------------------------------------
+HOSTAPD_PMKID="/usr/local/sbin/hostapd-pmkid"
+if [ ! -x "$HOSTAPD_PMKID" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  if [ -x "$SCRIPT_DIR/compila_hostapd_pmkid.sh" ]; then
+    echo "[!] $HOSTAPD_PMKID no existe. Compilando hostapd parcheado..."
+    "$SCRIPT_DIR/compila_hostapd_pmkid.sh"
+  else
+    echo "[-] ERROR: falta $HOSTAPD_PMKID y no encuentro compila_hostapd_pmkid.sh."
+    echo "    Ejecuta antes: sudo ./compila_hostapd_pmkid.sh"
+    exit 1
+  fi
+fi
+
 echo "[+] 6. Arrancando Puntos de Acceso (APs)..."
 ip netns exec ns_ap_open     hostapd -B "$LAB_DIR/open/hostapd.conf"
 ip netns exec ns_ap_wpa2     hostapd -B "$LAB_DIR/wpa2/hostapd.conf"
-ip netns exec ns_ap_pmkid    hostapd -B "$LAB_DIR/pmkid/hostapd.conf"
-ip netns exec ns_ap_pmkid_nc hostapd -B "$LAB_DIR/pmkid_nc/hostapd.conf"
+ip netns exec ns_ap_pmkid    "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid/hostapd.conf"
+ip netns exec ns_ap_pmkid_nc "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid_nc/hostapd.conf"
 ip netns exec ns_ap_ent      hostapd -B "$LAB_DIR/enterprise/hostapd.conf"
 ip netns exec ns_ap_wep      hostapd -B "$LAB_DIR/wep/hostapd.conf"
 
