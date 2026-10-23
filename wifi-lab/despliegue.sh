@@ -15,6 +15,31 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+# ------------------------------------------------------------------------------
+# Paquetes necesarios: hostapd (APs), hcxtools (captura/conversion PMKID) y
+# OpenCL en CPU (pocl + ocl-icd) para hashcat. Solo se instalan los que falten.
+# ------------------------------------------------------------------------------
+PAQUETES=(hostapd hcxtools pocl-opencl-icd ocl-icd-libopencl1)
+FALTAN=()
+for pkg in "${PAQUETES[@]}"; do
+  if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
+    FALTAN+=("$pkg")
+  fi
+done
+
+if [ "${#FALTAN[@]}" -gt 0 ]; then
+  echo "[!] Faltan paquetes: ${FALTAN[*]}. Instalandolos..."
+  apt-get update -qq
+  apt-get install -y -qq "${FALTAN[@]}"
+  if [[ " ${FALTAN[*]} " == *" hostapd "* ]]; then
+    # apt deja el servicio activo bloqueando la radio: se desactiva.
+    systemctl disable --now hostapd >/dev/null 2>&1 || true
+    systemctl unmask hostapd >/dev/null 2>&1 || true
+  fi
+else
+  echo "[+] Paquetes necesarios ya instalados."
+fi
+
 LAB_DIR="/opt/wifi-lab"
 
 echo "[+] 1. Limpiando entorno previo..."
@@ -314,18 +339,8 @@ fi
 
 # ------------------------------------------------------------------------------
 # hostapd del sistema para los escenarios open/wpa2/enterprise/wep.
-# Si no esta instalado, se instala; luego se resuelve su ruta completa
-# (bajo sudo, /usr/sbin puede no estar en el PATH).
+# Se resuelve su ruta completa (bajo sudo, /usr/sbin puede no estar en el PATH).
 # ------------------------------------------------------------------------------
-if ! command -v hostapd >/dev/null 2>&1 && [ ! -x /usr/sbin/hostapd ]; then
-  echo "[!] hostapd no esta instalado. Instalandolo..."
-  apt-get update -qq
-  apt-get install -y -qq hostapd
-  # apt deja el servicio activo bloqueando la radio: se desactiva.
-  systemctl disable --now hostapd >/dev/null 2>&1 || true
-  systemctl unmask hostapd >/dev/null 2>&1 || true
-  rfkill unblock wifi 2>/dev/null || true
-fi
 HOSTAPD_SYS="$(command -v hostapd || echo /usr/sbin/hostapd)"
 if [ ! -x "$HOSTAPD_SYS" ]; then
   echo "[-] ERROR: no se encuentra el binario hostapd tras intentar instalarlo."
