@@ -62,9 +62,9 @@ sudo iw dev wlan0 set channel 11
 |-----------------|----|-------------|--------------------------------------------|----------|
 | `he_open`       | 1  | Abierta     | Sniffing de tráfico en claro (HTTP POST)   | `user=admin&pass=SecretPass2026` |
 | `he_wep`        | 9  | WEP-104     | Recolección de IVs + reinyección ARP       | `ilovemyfamily` (hex `69:6C:6F:76:65:6D:79:66:61:6D:69:6C:79`) |
-| `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | `chocolate` |
-| `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `dragonfly` |
-| `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `marshmallow` |
+| `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | `sunshine` |
+| `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `butterfly` |
+| `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `football` |
 | `he_enterprise` | 3  | WPA2-EAP    | EAP-PEAP / captura de reto MSCHAPv2        | Identidad `student_user@domain.lab` · tipo EAP 25 (PEAP) |
 
 Las tres claves WPA2 están en `rockyou.txt`. El password interno del cliente
@@ -286,7 +286,7 @@ hcxpcapngtool -o hash_wpa2.22000 cap_wpa2-01.cap
 hashcat -m 22000 hash_wpa2.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-**Resultado esperado:** `chocolate`.
+**Resultado esperado:** `sunshine`.
 
 ### Fundamento técnico
 
@@ -326,7 +326,7 @@ KCK = primeros 128 bits de la PTK      (clave para el MIC)
 - **Contraste con WEP:** aquí no hay debilidad criptográfica, solo fuerza
   bruta. PBKDF2 con 4096 iteraciones hace cada intento caro. Con una
   contraseña larga y aleatoria el ataque es inviable; solo caen las
-  contraseñas débiles o de diccionario (`chocolate` está en `rockyou.txt`).
+  contraseñas débiles o de diccionario (`sunshine` está en `rockyou.txt`).
 - **El SSID actúa como sal:** las tablas precalculadas solo sirven para un
   SSID concreto. Por eso los SSID por defecto o muy comunes son más
   vulnerables.
@@ -356,7 +356,7 @@ hcxpcapngtool -o hash_pmkid.22000 pmkid_cli.pcapng
 hashcat -m 22000 hash_pmkid.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-**Resultado esperado:** `dragonfly`.
+**Resultado esperado:** `butterfly`.
 
 ### Fundamento técnico
 
@@ -405,7 +405,7 @@ hcxpcapngtool -o hash_nc.22000 pmkid_nc.pcapng
 hashcat -m 22000 hash_nc.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-**Resultado esperado:** `marshmallow`.
+**Resultado esperado:** `football`.
 
 **Comparación (respuesta a la pregunta de la guía del alumno):**
 

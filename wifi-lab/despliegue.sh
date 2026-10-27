@@ -171,7 +171,7 @@ channel=6
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=bbbe6ee5730c9b7c90caaec0fdebaa3e89bd08eb7b9e7dcd76fb344b8b1c68c7
+wpa_psk=3e9ef0d8989c7a272eb6ff5a711136aba70f47821c5690017335f9f1d1ecf262
 EOF
 
 cat << 'EOF' > "$LAB_DIR/wpa2/wpa.conf"
@@ -179,7 +179,7 @@ ctrl_interface=/var/run/wpa_supplicant_wpa2
 p2p_disabled=1
 network={
     ssid="he_wpa2"
-    psk=bbbe6ee5730c9b7c90caaec0fdebaa3e89bd08eb7b9e7dcd76fb344b8b1c68c7
+    psk=3e9ef0d8989c7a272eb6ff5a711136aba70f47821c5690017335f9f1d1ecf262
 }
 EOF
 
@@ -198,7 +198,7 @@ channel=11
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=d7a26f04324d45ece8ecbb98705c2e9d06e5787c9a1a7ebdc0f12dea8d6b448f
+wpa_psk=414ff00c403e17f5d6a1e8baa5fbb78eec5053795aa027d5763fc5a26afce996
 okc=1
 EOF
 
@@ -207,7 +207,7 @@ ctrl_interface=/var/run/wpa_supplicant_pmkid
 p2p_disabled=1
 network={
     ssid="he_pmkid"
-    psk=d7a26f04324d45ece8ecbb98705c2e9d06e5787c9a1a7ebdc0f12dea8d6b448f
+    psk=414ff00c403e17f5d6a1e8baa5fbb78eec5053795aa027d5763fc5a26afce996
 }
 EOF
 
@@ -228,7 +228,7 @@ channel=4
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
+wpa_psk=b25e910e95c0b150e515f1057caeb6cba4437c813d80947cd9ee84dd0899e745
 okc=1
 EOF
 
@@ -237,7 +237,7 @@ ctrl_interface=/var/run/wpa_supplicant_pmkid_nc
 p2p_disabled=1
 network={
     ssid="he_pmkid_nc"
-    psk=1f84ed5d6b964c2489d9ce0f50e3d75eeb374207291538e4bdfc8491a1548192
+    psk=b25e910e95c0b150e515f1057caeb6cba4437c813d80947cd9ee84dd0899e745
 }
 EOF
 
