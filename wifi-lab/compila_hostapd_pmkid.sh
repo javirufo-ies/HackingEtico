@@ -33,9 +33,24 @@ if [ -x "$BIN_DEST" ] && [ "$1" != "--force" ]; then
   exit 0
 fi
 
-echo "[+] 1. Instalando dependencias de compilacion..."
-apt-get update -qq
-apt-get install -y -qq build-essential pkg-config libnl-3-dev libnl-genl-3-dev libssl-dev wget
+echo "[+] 1. Comprobando dependencias de compilacion..."
+PAQUETES=(build-essential pkg-config libnl-3-dev libnl-genl-3-dev libssl-dev wget perl)
+FALTAN=()
+for pkg in "${PAQUETES[@]}"; do
+  if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
+    FALTAN+=("$pkg")
+  fi
+done
+
+if [ "${#FALTAN[@]}" -gt 0 ]; then
+  echo "[!] Faltan paquetes: ${FALTAN[*]}. Instalandolos..."
+  # Un mirror a medio sincronizar hace fallar el update: se sigue con los
+  # indices que haya y, si falta algo de verdad, fallara el install.
+  apt-get update -qq || echo "[!] apt-get update ha fallado; se usan los indices existentes."
+  apt-get install -y -qq "${FALTAN[@]}"
+else
+  echo "    [OK] Dependencias ya instaladas."
+fi
 
 echo "[+] 2. Descargando hostapd $HOSTAPD_VER..."
 mkdir -p "$SRC_DIR"
