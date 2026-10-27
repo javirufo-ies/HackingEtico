@@ -6,7 +6,9 @@
 #   El hostapd de serie no incluye el PMKID KDE en el mensaje M1 del 4-way con
 #   WPA-PSK (solo con 802.1X, SAE u OWE). Para que el ejercicio PMKID del
 #   laboratorio funcione, este script anade WPA-PSK a esa condicion en
-#   src/ap/wpa_auth.c (estado PTKSTART) y compila el binario en:
+#   src/ap/wpa_auth.c (estado PTKSTART). Ademas hace que hostapd no exija el
+#   ACK de la Authentication/Association Response (en hwsim nadie confirma las
+#   tramas dirigidas a la MAC de hcxdumptool). Compila el binario en:
 #
 #       /usr/local/sbin/hostapd-pmkid
 #
@@ -51,6 +53,21 @@ sed -i 's/(wpa_key_mgmt_wpa_ieee8021x(sm->wpa_key_mgmt) ||$/(wpa_key_mgmt_wpa_ie
 PATCHED=$(grep -c 'wpa_key_mgmt_wpa_ieee8021x(sm->wpa_key_mgmt) || wpa_key_mgmt_wpa_psk(sm->wpa_key_mgmt) ||' "$WPA_AUTH" || true)
 if [ "$PATCHED" -ne 1 ]; then
   echo "[-] ERROR: el parche debia cambiar 1 linea y ha cambiado $PATCHED."
+  exit 1
+fi
+echo "    [OK] Parche aplicado"
+
+# mac80211_hwsim solo genera ACK hacia interfaces activas: las tramas que el AP
+# envía a una MAC inyectada desde modo monitor (hcxdumptool) nunca se confirman.
+# hostapd descarta la estación si no recibe el ACK de la Authentication o de la
+# Association Response, y el M1 con el PMKID no llega a salir. Se ignora ese ACK
+# en src/ap/ieee802_11.c (handle_auth_cb y handle_assoc_cb).
+echo "[+] 3b. Aplicando parche (no exigir ACK de auth/assoc response, por hwsim)..."
+IEEE80211="hostapd-$HOSTAPD_VER/src/ap/ieee802_11.c"
+perl -0pi -e 's/if \(!ok\) \{(\s*hostapd_logger\(hapd, mgmt->da, HOSTAPD_MODULE_IEEE80211,\s*HOSTAPD_LEVEL_\w+,\s*"did not acknowledge (?:authentication|association) response"\);)/if (0 \&\& !ok) {$1/g' "$IEEE80211"
+PATCHED=$(grep -c 'if (0 && !ok) {' "$IEEE80211" || true)
+if [ "$PATCHED" -ne 2 ]; then
+  echo "[-] ERROR: el parche debia cambiar 2 lineas y ha cambiado $PATCHED."
   exit 1
 fi
 echo "    [OK] Parche aplicado"
