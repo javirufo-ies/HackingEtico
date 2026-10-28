@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# SCRIPT DE LIMPIEZA Y RESTAURACIÓN INTEGRAL - LAB WI-FI (5 ESCENARIOS)
+# SCRIPT DE LIMPIEZA Y RESTAURACIÓN INTEGRAL - LAB WI-FI (6 ESCENARIOS)
 # ==============================================================================
 
 if [ "$EUID" -ne 0 ]; then
@@ -48,7 +48,13 @@ modprobe -r mac80211_hwsim 2>/dev/null || true
 echo "[+] 6. Limpiando archivos temporales de captura y diccionarios del alumno..."
 rm -f /tmp/wep_* /tmp/wpa2_* /tmp/pmkid_* /tmp/open_* /tmp/*.cap /tmp/*.pcap /tmp/*.csv /tmp/*.netxml 2>/dev/null || true
 
-echo "[+] 7. Reiniciando gestor de red del sistema..."
+echo "[+] 7. Borrando configuraciones residuales del lab (Anti-Cheat)..."
+# despliegue.sh las borra al final; si se interrumpió antes, quedarían en disco
+# (incluido eap_user.conf con la contraseña Enterprise). Los certificados de
+# enterprise/certs se conservan para reutilizarlos en el siguiente despliegue.
+rm -f /opt/wifi-lab/*/*.conf 2>/dev/null || true
+
+echo "[+] 8. Reiniciando gestor de red del sistema..."
 systemctl restart NetworkManager 2>/dev/null || service network-manager restart 2>/dev/null || true
 
 echo ""

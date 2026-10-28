@@ -20,7 +20,7 @@ fi
 # Paquetes necesarios: hostapd (APs), hcxtools (captura/conversion PMKID) y
 # OpenCL en CPU (pocl + ocl-icd) para hashcat. Solo se instalan los que falten.
 # ------------------------------------------------------------------------------
-PAQUETES=(hostapd hcxtools pocl-opencl-icd ocl-icd-libopencl1 hostapd-wpe)
+PAQUETES=(hostapd hcxtools pocl-opencl-icd ocl-icd-libopencl1 hostapd-wpe openssl)
 FALTAN=()
 for pkg in "${PAQUETES[@]}"; do
   if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
@@ -245,8 +245,21 @@ EOF
 
 # ------------------------------------------------------------------------------
 # ESCENARIO 4: ENTERPRISE (802.1X / EAP-PEAP)
+#   El propio hostapd hace de servidor de autenticación (eap_server=1), sin
+#   RADIUS externo: así el cliente completa el intercambio PEAP/MSCHAPv2 y en
+#   el aire se ven la identidad y el método EAP (tipo 25).
+#   El certificado del servidor es autofirmado y se reutiliza entre despliegues.
 # ------------------------------------------------------------------------------
-cat << 'EOF' > "$LAB_DIR/enterprise/hostapd.conf"
+CERT_DIR="$LAB_DIR/enterprise/certs"
+mkdir -p "$CERT_DIR"
+if [ ! -s "$CERT_DIR/server.pem" ] || [ ! -s "$CERT_DIR/server.key" ]; then
+  openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 3650 \
+    -subj "/C=ES/O=HE Lab/CN=radius.domain.lab" \
+    -keyout "$CERT_DIR/server.key" -out "$CERT_DIR/server.pem" > /dev/null 2>&1
+  chmod 600 "$CERT_DIR/server.key"
+fi
+
+cat << EOF > "$LAB_DIR/enterprise/hostapd.conf"
 interface=wlan_ap_ent
 driver=nl80211
 ssid=he_enterprise
@@ -254,11 +267,20 @@ hw_mode=g
 channel=3
 wpa=2
 wpa_key_mgmt=WPA-EAP
-wpa_pairwise=CCMP
+rsn_pairwise=CCMP
 ieee8021x=1
-auth_server_addr=127.0.0.1
-auth_server_port=1812
-auth_server_shared_secret=testing123
+eap_server=1
+eap_user_file=$LAB_DIR/enterprise/eap_user.conf
+ca_cert=$CERT_DIR/server.pem
+server_cert=$CERT_DIR/server.pem
+private_key=$CERT_DIR/server.key
+EOF
+
+# Fase 1: cualquier identidad externa usa PEAP. Fase 2 (dentro del túnel):
+# usuario y contraseña MSCHAPv2 ([2] = solo válido en fase 2).
+cat << 'EOF' > "$LAB_DIR/enterprise/eap_user.conf"
+*                          PEAP
+"student_user@domain.lab"  MSCHAPV2  "EnterprisePass2026"  [2]
 EOF
 
 cat << 'EOF' > "$LAB_DIR/enterprise/wpa.conf"
@@ -445,7 +467,21 @@ ip netns exec ns_cl_pmkid_nc iw dev wlan_cl_pmk_nc link || true
 # CLIENTE ENTERPRISE
 mkdir -p /var/run/wpa_supplicant_ent
 ip netns exec ns_cli_ent wpa_supplicant -B -Dnl80211 -i wlan_cli_ent -c "$LAB_DIR/enterprise/wpa.conf"
-sleep 2
+
+# Esperar a que complete PEAP + 4-way handshake (máx. 15 s)
+ENT_OK=0
+for _ in $(seq 1 15); do
+  if ip netns exec ns_cli_ent wpa_cli -p /var/run/wpa_supplicant_ent -i wlan_cli_ent status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then
+    ENT_OK=1
+    break
+  fi
+  sleep 1
+done
+if [ "$ENT_OK" -eq 1 ]; then
+  echo "  [✓] Cliente he_enterprise autenticado (PEAP/MSCHAPv2)"
+else
+  echo "  [!] Cliente he_enterprise NO se autenticó (revisa hostapd/certificados)"
+fi
 ip netns exec ns_cli_ent ip addr add 192.168.4.10/24 dev wlan_cli_ent
 ip netns exec ns_cli_ent sh -c "while true; do ping -i 1 192.168.4.1 > /dev/null 2>&1; done" &
 
