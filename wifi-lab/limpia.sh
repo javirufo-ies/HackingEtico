@@ -16,6 +16,7 @@ pkill -9 nc 2>/dev/null || true
 pkill -9 curl 2>/dev/null || true
 pkill -9 ping 2>/dev/null || true
 pkill -9 arping 2>/dev/null || true
+pkill -9 -f "wlan_cli_ent reassociate" 2>/dev/null || true
 pkill -9 airodump-ng 2>/dev/null || true
 pkill -9 aireplay-ng 2>/dev/null || true
 pkill -9 aircrack-ng 2>/dev/null || true

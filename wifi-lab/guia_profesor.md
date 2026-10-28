@@ -65,7 +65,7 @@ sudo iw dev wlan0 set channel 11
 | `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | `sunshine` |
 | `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `butterfly` |
 | `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `football` |
-| `he_enterprise` | 3  | WPA2-EAP    | EAP-PEAP / captura de reto MSCHAPv2        | Identidad `student_user@domain.lab` · tipo EAP 25 (PEAP) |
+| `he_enterprise` | 3  | WPA2-EAP    | Análisis pasivo de EAP-PEAP                | Identidad `student_user@domain.lab` · tipo EAP 25 (PEAP) · cert. `radius.domain.lab` |
 
 Las tres claves WPA2 están en `rockyou.txt`. El password interno del cliente
 Enterprise (`EnterprisePass2026`) **no** es un objetivo de la práctica: el
@@ -634,27 +634,82 @@ escenario WEP.
 
 ## 6. `he_enterprise` — WPA2-EAP (PEAP/MSCHAPv2)
 
+Hay un cliente conectado con PEAP/MSCHAPv2. El objetivo es **pasivo**: sacar
+de la captura la identidad del usuario, el método EAP y el certificado del
+servidor. El vector de **Evil Twin / RADIUS falso** (`hostapd-wpe`) se comenta
+en clase, pero no se ejecuta en este escenario.
+
+### Cómo está montado el escenario
+
+- **El propio hostapd es el servidor de autenticación** (`eap_server=1`). No
+  hay RADIUS externo. Usa un certificado autofirmado
+  (`CN=radius.domain.lab`), que `despliegue.sh` genera la primera vez en
+  `/opt/wifi-lab/enterprise/certs/`.
+- **Sin caché de PMKSA** (`disable_pmksa_caching=1`). Cada conexión repite
+  el EAP completo. Con la caché, el cliente reconectaría solo con el PMKID y
+  no se vería ningún intercambio EAP.
+- **El cliente se reasocia cada 30 s** (`wpa_cli reassociate`). Así la
+  autenticación se repite sola y basta con escuchar: no hace falta deauth.
+- **El cliente no valida el certificado** (no tiene `ca_cert`). Es la
+  debilidad que se comenta en el fundamento técnico.
+
+Al desplegar debe salir
+`[✓] Cliente he_enterprise autenticado (PEAP/MSCHAPv2)`.
+
+### a) Capturar
+
 ```bash
-sudo iw dev wlan0 set channel 3
-sudo airodump-ng -c 3 --bssid <BSSID_ENT> -w cap_ent wlan0
+sudo airmon-ng start wlan0 3
+sudo airodump-ng -c 3 --bssid <BSSID_ENT> -w cap_ent wlan0mon
+# Esperar ~1 min (al menos una reasociación) y Ctrl+C
 ```
 
-Objetivo: observar el intercambio EAP-PEAP y comentar el vector de **Evil Twin /
-RADIUS falso** (`hostapd-wpe`) para capturar el challenge/response MSCHAPv2 y
-crackearlo con `asleap`. En este laboratorio basta con identificar la identidad
-y el tipo de EAP en la captura:
+### b) Identidad y método EAP
 
 ```bash
-tshark -r cap_ent-01.cap -Y eap -T fields -e eap.identity -e eap.type
+tshark -r cap_ent-01.cap -Y eap -T fields -e eap.code -e eap.type -e eap.identity
 ```
+
+Se lee así:
+
+| `eap.code` | `eap.type` | Significado |
+|---|---|---|
+| 1 (Request) | 1 | El AP pide la identidad |
+| 2 (Response) | 1 | El cliente responde con `student_user@domain.lab` **en claro** |
+| 1 (Request) | 25 | El servidor propone PEAP (*PEAP Start*) |
+| 1 / 2 | 25 | Túnel TLS: a partir de aquí todo va cifrado |
+| 3 (Success) | | Autenticación correcta; después viene el 4-way |
+
+### c) Certificado del servidor
+
+Con TLS 1.2, el certificado del servidor viaja en claro dentro de PEAP:
+
+```bash
+tshark -r cap_ent-01.cap -Y "tls.handshake.type == 11" -V | grep -i "id-at-commonName"
+```
+
+Debe aparecer `radius.domain.lab`. Es lo que debería comprobar el cliente, y
+lo que imitaría un AP falso. Si la línea no sale, la sesión ha usado TLS 1.3,
+que cifra el certificado. No afecta al resultado de la práctica.
 
 **Resultado esperado:** identidad `student_user@domain.lab` (viaja en claro en
-la fase externa) y tipo EAP 25 = PEAP.
+la fase externa), tipo EAP 25 = PEAP y certificado `CN=radius.domain.lab`
+autofirmado.
+
+**Si no aparece ningún paquete EAP:** la captura empezó después de una
+reasociación y se cortó antes de la siguiente. Hay que esperar más. También
+puede que el cliente no se haya autenticado al desplegar. Para comprobarlo:
+
+```bash
+sudo ip netns exec ns_cli_ent wpa_cli -p /var/run/wpa_supplicant_ent -i wlan_cli_ent status | grep -E "wpa_state|EAP"
+# wpa_state=COMPLETED  /  EAP state=SUCCESS  /  selectedMethod=25 (EAP-PEAP)
+```
 
 ### Fundamento técnico
 
 - **No hay una clave compartida que crackear.** En 802.1X cada usuario se
-  autentica con sus credenciales contra un servidor RADIUS. La PMK se deriva
+  autentica con sus credenciales contra un servidor de autenticación
+  (normalmente RADIUS; en el lab, el EAP integrado de hostapd). La PMK se deriva
   de la sesión TLS (MSK) y es distinta para cada usuario y conexión. Capturar
   el handshake 4-way no sirve: la PMK no sale de ninguna contraseña común.
 - **Fuga 1: la identidad externa.** El `EAP-Response/Identity` se envía

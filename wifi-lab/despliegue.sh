@@ -50,6 +50,7 @@ pkill -9 nc 2>/dev/null || true
 pkill -9 curl 2>/dev/null || true
 pkill -9 ping 2>/dev/null || true
 pkill -9 arping 2>/dev/null || true
+pkill -9 -f "wlan_cli_ent reassociate" 2>/dev/null || true
 
 # Limpiar sockets residuales
 rm -rf /var/run/wpa_supplicant* 2>/dev/null || true
@@ -269,6 +270,7 @@ wpa=2
 wpa_key_mgmt=WPA-EAP
 rsn_pairwise=CCMP
 ieee8021x=1
+disable_pmksa_caching=1
 eap_server=1
 eap_user_file=$LAB_DIR/enterprise/eap_user.conf
 ca_cert=$CERT_DIR/server.pem
@@ -484,6 +486,9 @@ else
 fi
 ip netns exec ns_cli_ent ip addr add 192.168.4.10/24 dev wlan_cli_ent
 ip netns exec ns_cli_ent sh -c "while true; do ping -i 1 192.168.4.1 > /dev/null 2>&1; done" &
+# Reasociación periódica: repite el EAP completo (sin caché de PMKSA) para que
+# el alumno lo vea con una captura pasiva, sin necesidad de deauth.
+ip netns exec ns_cli_ent sh -c "while true; do sleep 30; wpa_cli -p /var/run/wpa_supplicant_ent -i wlan_cli_ent reassociate > /dev/null 2>&1; done" &
 
 # CLIENTES WEP (Generación continua de peticiones ARP Broadcast)
 mkdir -p /var/run/wpa_supplicant_wep
