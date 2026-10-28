@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-# SCRIPT DE DESPLIEGUE DEFINITIVO Y REALISTA - LAB WI-FI (mac80211_hwsim)
+# LABORATORIO WI-FI (mac80211_hwsim) HACKING ÉTICO
+# Francisco Javier Rufo Mendo
 #   - 21 radios virtuales
 #   - Interfaces de ALUMNO: wlan0 .. wlan6
 #   - Escenario PMKID CON clientes : he_pmkid
@@ -12,14 +13,14 @@ set -e
 
 if [ "$EUID" -ne 0 ]; then
   echo "[-] Ejecuta este script como root (sudo)."
-  exit 1
+  exit 1 
 fi
 
 # ------------------------------------------------------------------------------
 # Paquetes necesarios: hostapd (APs), hcxtools (captura/conversion PMKID) y
 # OpenCL en CPU (pocl + ocl-icd) para hashcat. Solo se instalan los que falten.
 # ------------------------------------------------------------------------------
-PAQUETES=(hostapd hcxtools pocl-opencl-icd ocl-icd-libopencl1)
+PAQUETES=(hostapd hcxtools pocl-opencl-icd ocl-icd-libopencl1 hostapd-wpe)
 FALTAN=()
 for pkg in "${PAQUETES[@]}"; do
   if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
