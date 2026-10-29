@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 760" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#444"/>
+    </marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#C0392B"/>
+    </marker>
+    <style>
+      .lbl{font-size:14px;font-weight:600;text-anchor:middle;}
+      .sub{font-size:11px;text-anchor:middle;}
+      .sec{font-size:13px;font-weight:700;fill:#555;}
+      .ln{stroke:#444;stroke-width:2;fill:none;}
+      .msg{font-size:12px;text-anchor:middle;fill:#333;}
+      .life{stroke:#bbb;stroke-width:1.5;stroke-dasharray:4 4;}
+      .div{stroke:#e2e2e2;stroke-width:1.5;}
+      .cap{stroke:#C0392B;stroke-width:1.8;stroke-dasharray:5 4;fill:none;}
+    </style>
+  </defs>
+
+  <text x="490" y="30" font-size="19" font-weight="700" text-anchor="middle" fill="#222">WPA2-PSK: de la contraseña al MIC, y el ataque offline</text>
+
+  <!-- ========== BANDA 1: DERIVACIÓN ========== -->
+  <text class="sec" x="24" y="66">1 · Derivación de claves</text>
+
+  <rect x="24" y="82" width="128" height="52" rx="8" fill="#F7D6D9" stroke="#C0392B" stroke-width="2"/>
+  <text class="lbl" x="88" y="104" fill="#8c261b">Contraseña</text>
+  <text class="sub" x="88" y="121" fill="#8c261b">secreta</text>
+
+  <text x="160" y="115" font-size="20" font-weight="700" text-anchor="middle" fill="#666">+</text>
+
+  <rect x="172" y="82" width="104" height="52" rx="8" fill="#FBE6C8" stroke="#D9892B" stroke-width="2"/>
+  <text class="lbl" x="224" y="104" fill="#8a5212">SSID</text>
+  <text class="sub" x="224" y="121" fill="#8a5212">(sal)</text>
+
+  <path class="ln" d="M276,108 L316,108" marker-end="url(#a)"/>
+
+  <rect x="320" y="80" width="168" height="56" rx="8" fill="#D4E3F6" stroke="#2F6DB4" stroke-width="2"/>
+  <text class="lbl" x="404" y="103" fill="#1d4e86">PBKDF2·HMAC-SHA1</text>
+  <text class="sub" x="404" y="121" fill="#1d4e86">4096 iteraciones</text>
+
+  <path class="ln" d="M488,108 L516,108" marker-end="url(#a)"/>
+
+  <rect x="520" y="82" width="92" height="52" rx="8" fill="#E6E0F0" stroke="#6B4FA0" stroke-width="2"/>
+  <text class="lbl" x="566" y="113" fill="#432f6b">PMK</text>
+
+  <path class="ln" d="M612,108 L644,108" marker-end="url(#a)"/>
+
+  <rect x="648" y="80" width="118" height="56" rx="8" fill="#D4E3F6" stroke="#2F6DB4" stroke-width="2"/>
+  <text class="lbl" x="707" y="113" fill="#1d4e86">PRF-512</text>
+
+  <path class="ln" d="M766,108 L798,108" marker-end="url(#a)"/>
+
+  <rect x="802" y="82" width="88" height="52" rx="8" fill="#E6E0F0" stroke="#6B4FA0" stroke-width="2"/>
+  <text class="lbl" x="846" y="113" fill="#432f6b">PTK</text>
+
+  <!-- feeder nonces/macs -> PRF -->
+  <rect x="448" y="168" width="224" height="52" rx="8" fill="#FBE6C8" stroke="#D9892B" stroke-width="2"/>
+  <text class="sub" x="560" y="190" fill="#8a5212" font-size="11.5">ANonce · SNonce</text>
+  <text class="sub" x="560" y="207" fill="#8a5212" font-size="11.5">MAC_AP · MAC_STA (en claro)</text>
+  <path class="ln" d="M666,170 L704,139" marker-end="url(#a)"/>
+
+  <!-- PTK -> KCK -->
+  <rect x="760" y="168" width="170" height="52" rx="8" fill="#DCEBE0" stroke="#4F8A58" stroke-width="2"/>
+  <text class="lbl" x="845" y="190" fill="#2f5e37" font-size="13.5">KCK</text>
+  <text class="sub" x="845" y="207" fill="#2f5e37">clave del MIC</text>
+  <path class="ln" d="M846,134 L846,168" marker-end="url(#a)"/>
+
+  <line class="div" x1="20" y1="238" x2="960" y2="238"/>
+
+  <!-- ========== BANDA 2: HANDSHAKE ========== -->
+  <text class="sec" x="24" y="262">2 · Handshake 4-way</text>
+
+  <rect x="112" y="276" width="130" height="36" rx="6" fill="#ECECEC" stroke="#888" stroke-width="2"/>
+  <text class="lbl" x="177" y="299" fill="#444" font-size="13">Punto de acceso</text>
+  <rect x="612" y="276" width="130" height="36" rx="6" fill="#ECECEC" stroke="#888" stroke-width="2"/>
+  <text class="lbl" x="677" y="299" fill="#444" font-size="13">Cliente (STA)</text>
+
+  <line class="life" x1="177" y1="312" x2="177" y2="470"/>
+  <line class="life" x1="677" y1="312" x2="677" y2="470"/>
+
+  <text class="msg" x="427" y="332">M1 · ANonce (en claro)</text>
+  <path class="ln" d="M177,340 L677,340" marker-end="url(#a)"/>
+
+  <text class="msg" x="427" y="370">M2 · SNonce (claro) + MIC</text>
+  <path class="ln" d="M677,378 L177,378" marker-end="url(#a)"/>
+
+  <text class="msg" x="427" y="408">M3 · GTK cifrada + MIC</text>
+  <path class="ln" d="M177,416 L677,416" marker-end="url(#a)"/>
+
+  <text class="msg" x="427" y="446">M4 · MIC (confirmación)</text>
+  <path class="ln" d="M677,454 L177,454" marker-end="url(#a)"/>
+
+  <line class="div" x1="20" y1="492" x2="960" y2="492"/>
+
+  <!-- ========== BANDA 3: ATAQUE OFFLINE ========== -->
+  <text class="sec" x="24" y="516">3 · Ataque offline de diccionario (basta con M1 + M2)</text>
+
+  <!-- captura del MIC -->
+  <rect x="468" y="540" width="184" height="50" rx="8" fill="#ECECEC" stroke="#888" stroke-width="2"/>
+  <text class="lbl" x="560" y="563" fill="#444" font-size="13">MIC capturado</text>
+  <text class="sub" x="560" y="580" fill="#666">del M2</text>
+  <path class="cap" d="M600,380 C762,432 772,502 616,538" marker-end="url(#ag)"/>
+  <text x="702" y="452" font-size="11.5" fill="#C0392B" text-anchor="middle">captura pasiva (sniffing)</text>
+
+  <!-- diccionario -->
+  <rect x="40" y="642" width="150" height="54" rx="8" fill="#DCEBE0" stroke="#4F8A58" stroke-width="2"/>
+  <text class="lbl" x="115" y="665" fill="#2f5e37">Diccionario</text>
+  <text class="sub" x="115" y="683" fill="#2f5e37">rockyou.txt</text>
+
+  <path class="ln" d="M190,669 L222,669" marker-end="url(#a)"/>
+
+  <!-- derivar por candidata -->
+  <rect x="226" y="638" width="236" height="62" rx="8" fill="#D4E3F6" stroke="#2F6DB4" stroke-width="2"/>
+  <text class="lbl" x="344" y="662" fill="#1d4e86" font-size="13">cada candidata →</text>
+  <text class="lbl" x="344" y="682" fill="#1d4e86" font-size="13">PMK→PTK→KCK→ MIC'</text>
+
+  <path class="ln" d="M462,669 L498,669" marker-end="url(#a)"/>
+
+  <!-- rombo de comparación -->
+  <polygon points="560,629 624,669 560,709 496,669" fill="#fff8e1" stroke="#b8860b" stroke-width="2"/>
+  <text class="lbl" x="560" y="673" fill="#7a5c02" font-size="12.5">¿MIC' = MIC?</text>
+  <path class="ln" d="M560,590 L560,627" marker-end="url(#a)"/>
+
+  <!-- sí -> encontrada -->
+  <path class="ln" d="M624,669 L660,669" marker-end="url(#a)"/>
+  <text class="msg" x="642" y="661" fill="#2f5e37" font-weight="700">sí</text>
+  <rect x="664" y="642" width="256" height="54" rx="8" fill="#E6E0F0" stroke="#6B4FA0" stroke-width="2.5"/>
+  <text class="lbl" x="792" y="665" fill="#432f6b" font-size="14.5">Contraseña encontrada</text>
+  <text class="sub" x="792" y="683" fill="#432f6b">p. ej. sunshine</text>
+
+  <!-- no -> siguiente candidata -->
+  <path class="ln" d="M560,709 L560,730 L344,730 L344,700" marker-end="url(#a)"/>
+  <text class="msg" x="452" y="725" fill="#C0392B" font-weight="700">no · siguiente</text>
+</svg>

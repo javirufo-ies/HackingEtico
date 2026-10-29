@@ -282,7 +282,7 @@ EOF
 # usuario y contraseña MSCHAPv2 ([2] = solo válido en fase 2).
 cat << 'EOF' > "$LAB_DIR/enterprise/eap_user.conf"
 *                          PEAP
-"student_user@domain.lab"  MSCHAPV2  "EnterprisePass2026"  [2]
+"alumno@iesvjp.es"  MSCHAPV2  "computer"  [2]
 EOF
 
 cat << 'EOF' > "$LAB_DIR/enterprise/wpa.conf"
@@ -292,8 +292,8 @@ network={
     ssid="he_enterprise"
     key_mgmt=WPA-EAP
     eap=PEAP
-    identity="student_user@domain.lab"
-    password="EnterprisePass2026"
+    identity="alumno@iesvjp.es"
+    password="computer"
     phase2="auth=MSCHAPV2"
 }
 EOF

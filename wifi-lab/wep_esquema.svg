@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#444"/>
+    </marker>
+    <marker id="arwO" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#D9892B"/>
+    </marker>
+    <style>
+      .box{stroke-width:2;rx:8;}
+      .lbl{font-size:15px;font-weight:600;text-anchor:middle;}
+      .sub{font-size:11.5px;text-anchor:middle;}
+      .op{font-size:22px;font-weight:700;text-anchor:middle;}
+      .ln{stroke:#444;stroke-width:2;fill:none;}
+      .lnO{stroke:#D9892B;stroke-width:2;stroke-dasharray:6 4;fill:none;}
+      .cap{font-size:12px;text-anchor:middle;fill:#555;}
+    </style>
+  </defs>
+
+  <text x="490" y="30" font-size="20" font-weight="700" text-anchor="middle" fill="#222">Cifrado WEP de un paquete (RC4 + CRC32)</text>
+
+  <!-- ===== Cadena de clave / RC4 ===== -->
+  <rect class="box" x="20" y="70" width="130" height="54" rx="8" fill="#FBE6C8" stroke="#D9892B"/>
+  <text class="lbl" x="85" y="92" fill="#8a5212">IV</text>
+  <text class="sub" x="85" y="110" fill="#8a5212">24 bits · EN CLARO</text>
+
+  <text class="op" x="160" y="104" fill="#666">‖</text>
+
+  <rect class="box" x="172" y="70" width="178" height="54" rx="8" fill="#F7D6D9" stroke="#C0392B"/>
+  <text class="lbl" x="261" y="92" fill="#8c261b">Clave WEP</text>
+  <text class="sub" x="261" y="110" fill="#8c261b">40 o 104 bits · SECRETA</text>
+
+  <path class="ln" d="M350,97 L426,97" marker-end="url(#arw)"/>
+
+  <rect class="box" x="430" y="68" width="150" height="58" rx="8" fill="#D4E3F6" stroke="#2F6DB4"/>
+  <text class="lbl" x="505" y="92" fill="#1d4e86">RC4</text>
+  <text class="sub" x="505" y="110" fill="#1d4e86">KSA + PRGA</text>
+
+  <path class="ln" d="M580,97 L616,97" marker-end="url(#arw)"/>
+
+  <rect class="box" x="620" y="70" width="140" height="54" rx="8" fill="#D4E3F6" stroke="#2F6DB4"/>
+  <text class="lbl" x="690" y="101" fill="#1d4e86">Keystream</text>
+
+  <!-- keystream baja al XOR -->
+  <path class="ln" d="M690,124 L690,272" marker-end="url(#arw)"/>
+
+  <!-- ===== Cadena de datos ===== -->
+  <rect class="box" x="20" y="273" width="110" height="54" rx="8" fill="#E3EDE3" stroke="#4F8A58"/>
+  <text class="lbl" x="75" y="305" fill="#2f5e37">Datos</text>
+
+  <path class="ln" d="M130,300 L156,300" marker-end="url(#arw)"/>
+
+  <rect class="box" x="158" y="273" width="120" height="54" rx="8" fill="#E3EDE3" stroke="#4F8A58"/>
+  <text class="lbl" x="218" y="297" fill="#2f5e37">CRC32</text>
+  <text class="sub" x="218" y="315" fill="#2f5e37">→ ICV</text>
+
+  <path class="ln" d="M278,300 L304,300" marker-end="url(#arw)"/>
+
+  <rect class="box" x="306" y="273" width="180" height="54" rx="8" fill="#E3EDE3" stroke="#4F8A58"/>
+  <text class="lbl" x="396" y="305" fill="#2f5e37">Datos ‖ ICV</text>
+
+  <path class="ln" d="M486,300 L660,300" marker-end="url(#arw)"/>
+
+  <!-- ===== XOR ===== -->
+  <circle cx="690" cy="300" r="26" fill="#fff" stroke="#444" stroke-width="2"/>
+  <text class="op" x="690" y="308" fill="#444">⊕</text>
+
+  <path class="ln" d="M716,300 L756,300" marker-end="url(#arw)"/>
+
+  <rect class="box" x="760" y="273" width="200" height="54" rx="8" fill="#E6E0F0" stroke="#6B4FA0"/>
+  <text class="lbl" x="860" y="305" fill="#432f6b">Texto cifrado</text>
+
+  <!-- ===== Trama transmitida ===== -->
+  <text class="cap" x="490" y="395" fill="#333" font-weight="600" font-size="13">Trama 802.11 transmitida por el aire</text>
+  <g>
+    <rect x="120" y="415" width="220" height="56" fill="#ECECEC" stroke="#888" stroke-width="2"/>
+    <text class="lbl" x="230" y="448" fill="#444" font-size="13">Cabecera 802.11</text>
+
+    <rect x="340" y="415" width="120" height="56" fill="#FBE6C8" stroke="#D9892B" stroke-width="2"/>
+    <text class="lbl" x="400" y="448" fill="#8a5212" font-size="13">IV</text>
+
+    <rect x="460" y="415" width="90" height="56" fill="#ECECEC" stroke="#888" stroke-width="2"/>
+    <text class="lbl" x="505" y="448" fill="#444" font-size="13">KeyID</text>
+
+    <rect x="550" y="415" width="310" height="56" fill="#E6E0F0" stroke="#6B4FA0" stroke-width="2"/>
+    <text class="lbl" x="705" y="448" fill="#432f6b" font-size="13">Texto cifrado</text>
+  </g>
+
+  <!-- IV viaja en claro hasta la trama (rodea las cajas de datos) -->
+  <path class="lnO" d="M85,124 L85,150 L8,150 L8,405 L400,405 L400,413" marker-end="url(#arwO)"/>
+  <text class="cap" x="150" y="382" fill="#D9892B" font-size="11.5">el IV viaja EN CLARO</text>
+
+  <!-- cifrado hacia la trama -->
+  <path class="ln" d="M860,327 L860,392 L705,392 L705,413" marker-end="url(#arw)"/>
+
+  <!-- ===== Leyenda ===== -->
+  <g font-size="12" fill="#444">
+    <rect x="120" y="508" width="14" height="14" fill="#FBE6C8" stroke="#D9892B"/>
+    <text x="140" y="520">público (en claro)</text>
+    <rect x="270" y="508" width="14" height="14" fill="#F7D6D9" stroke="#C0392B"/>
+    <text x="290" y="520">secreto</text>
+    <rect x="365" y="508" width="14" height="14" fill="#D4E3F6" stroke="#2F6DB4"/>
+    <text x="385" y="520">RC4 / keystream</text>
+    <rect x="510" y="508" width="14" height="14" fill="#E3EDE3" stroke="#4F8A58"/>
+    <text x="530" y="520">datos</text>
+    <rect x="600" y="508" width="14" height="14" fill="#E6E0F0" stroke="#6B4FA0"/>
+    <text x="620" y="520">cifrado</text>
+  </g>
+</svg>

