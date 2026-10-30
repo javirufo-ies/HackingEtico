@@ -3,10 +3,11 @@
 # ==============================================================================
 # LABORATORIO WI-FI (mac80211_hwsim) HACKING ÉTICO
 # Francisco Javier Rufo Mendo
-#   - 21 radios virtuales
+#   - 23 radios virtuales
 #   - Interfaces de ALUMNO: wlan0 .. wlan6
 #   - Escenario PMKID CON clientes : he_pmkid
 #   - Escenario PMKID SIN clientes : he_pmkid_nc  (no clientes / clientless)
+#   - Escenario WPS vulnerable     : he_wps       (fuerza bruta del PIN)
 # ==============================================================================
 
 set -e
@@ -44,6 +45,7 @@ fi
 LAB_DIR="/opt/wifi-lab"
 
 echo "[+] 1. Limpiando entorno previo..."
+pkill -9 -f LAB_WPS_WATCHDOG 2>/dev/null || true
 pkill -9 hostapd 2>/dev/null || true
 pkill -9 wpa_supplicant 2>/dev/null || true
 pkill -9 nc 2>/dev/null || true
@@ -53,7 +55,7 @@ pkill -9 arping 2>/dev/null || true
 pkill -9 -f "wlan_cli_ent reassociate" 2>/dev/null || true
 
 # Limpiar sockets residuales
-rm -rf /var/run/wpa_supplicant* 2>/dev/null || true
+rm -rf /var/run/wpa_supplicant* /var/run/hostapd_wps 2>/dev/null || true
 
 # Eliminar namespaces previos
 for ns in $(ip netns list | awk '{print $1}'); do
@@ -79,8 +81,8 @@ modprobe -r mac80211_hwsim 2>/dev/null || true
 
 sleep 2
 
-echo "[+] 2. Cargando mac80211_hwsim (21 radios)..."
-modprobe mac80211_hwsim radios=21
+echo "[+] 2. Cargando mac80211_hwsim (23 radios)..."
+modprobe mac80211_hwsim radios=23
 sleep 2
 
 rfkill unblock wifi 2>/dev/null || true
@@ -88,7 +90,7 @@ rfkill unblock all 2>/dev/null || true
 
 echo "[+] 3. Asignando nombres de interfaz..."
 
-# 7 interfaces para el alumno (wlan0..wlan6) + 14 para el laboratorio = 21
+# 7 interfaces para el alumno (wlan0..wlan6) + 16 para el laboratorio = 23
 TARGETS=(
   "wlan0" "wlan1" "wlan2" "wlan3" "wlan4" "wlan5" "wlan6"
   "wlan_ap_open" "wlan_cli_open"
@@ -97,12 +99,13 @@ TARGETS=(
   "wlan_ap_pmk_nc" "wlan_cl_pmk_nc"
   "wlan_ap_ent" "wlan_cli_ent"
   "wlan_ap_wep" "wlan_cli1_wep" "wlan_cli2_wep"
+  "wlan_ap_wps" "wlan_cli_wps"
 )
 
 mapfile -t HW_IFS < <(ip link show | grep -oP '(?<=: )\b(wlan|wfx)\d+\b' | sort -V)
 
-if [ "${#HW_IFS[@]}" -lt 21 ]; then
-    echo "[-] ERROR: Se esperaban 21 interfaces inalámbricas, pero se detectaron ${#HW_IFS[@]}."
+if [ "${#HW_IFS[@]}" -lt 23 ]; then
+    echo "[-] ERROR: Se esperaban 23 interfaces inalámbricas, pero se detectaron ${#HW_IFS[@]}."
     exit 1
 fi
 
@@ -135,7 +138,7 @@ done
 sleep 1
 
 echo "[+] 4. Generando configuraciones..."
-mkdir -p "$LAB_DIR"/{open,wpa2,pmkid,pmkid_nc,enterprise,wep}
+mkdir -p "$LAB_DIR"/{open,wpa2,pmkid,pmkid_nc,enterprise,wep,wps}
 
 # ------------------------------------------------------------------------------
 # ESCENARIO 1: OPEN
@@ -324,6 +327,66 @@ network={
 }
 EOF
 
+# ------------------------------------------------------------------------------
+# ESCENARIO 6: WPS VULNERABLE (fuerza bruta online del PIN de AP)
+#   - PIN y passphrase ALEATORIOS en cada despliegue (anti-cheat): no aparecen
+#     en el script. La passphrase no está en ningún diccionario: la lección es
+#     que WPS entrega la clave WPA2 aunque esta sea robusta.
+#   - Primera mitad del PIN en 0000-0099 y segunda en 000-099 (+ checksum):
+#     con reaver (orden ascendente) son ~200 intentos como máximo, lo que
+#     cabe en una sesión de clase.
+#   - hostapd bloquea el PIN tras 3 fallos; un watchdog (paso 8) lo desbloquea
+#     cada segundo para simular un router sin protección anti-fuerza bruta.
+# ------------------------------------------------------------------------------
+wps_checksum() {
+  local p=$((10#$1)) acc=0
+  while [ "$p" -gt 0 ]; do
+    acc=$((acc + 3 * (p % 10))); p=$((p / 10))
+    acc=$((acc + p % 10));       p=$((p / 10))
+  done
+  echo $(( (10 - acc % 10) % 10 ))
+}
+WPS_PIN7="$(printf '%04d' $((RANDOM % 100)))$(printf '%03d' $((RANDOM % 100)))"
+WPS_PIN="${WPS_PIN7}$(wps_checksum "$WPS_PIN7")"
+WPS_PASS="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16)"
+
+cat << EOF > "$LAB_DIR/wps/hostapd.conf"
+interface=wlan_ap_wps
+driver=nl80211
+ctrl_interface=/var/run/hostapd_wps
+ssid=he_wps
+hw_mode=g
+channel=7
+wpa=2
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+wpa_passphrase=$WPS_PASS
+# --- WPS ---
+wps_state=2
+eap_server=1
+ap_pin=$WPS_PIN
+ap_setup_locked=0
+config_methods=label display keypad push_button
+device_name=Router Lab
+manufacturer=HackingEtico
+model_name=VulnRouter
+model_number=1.0
+serial_number=0001
+device_type=6-0050F204-1
+os_version=01020300
+EOF
+
+# Cliente legítimo: da realismo (la red "tiene uso") y verifica que el AP
+# funciona. NO es necesario para el ataque WPS.
+cat << EOF > "$LAB_DIR/wps/wpa.conf"
+ctrl_interface=/var/run/wpa_supplicant_wps
+p2p_disabled=1
+network={
+    ssid="he_wps"
+    psk="$WPS_PASS"
+}
+EOF
+
 echo "[+] 5. Creando Network Namespaces y aislando radios virtuales..."
 
 NAMESPACES=(
@@ -333,6 +396,7 @@ NAMESPACES=(
   "ns_ap_pmkid_nc" "ns_cl_pmkid_nc"
   "ns_ap_ent" "ns_cli_ent"
   "ns_ap_wep" "ns_cli1_wep" "ns_cli2_wep"
+  "ns_ap_wps" "ns_cli_wps"
 )
 
 IFS_TO_MOVE=(
@@ -342,6 +406,7 @@ IFS_TO_MOVE=(
   "wlan_ap_pmk_nc" "wlan_cl_pmk_nc"
   "wlan_ap_ent" "wlan_cli_ent"
   "wlan_ap_wep" "wlan_cli1_wep" "wlan_cli2_wep"
+  "wlan_ap_wps" "wlan_cli_wps"
 )
 
 for idx in "${!NAMESPACES[@]}"; do
@@ -380,12 +445,17 @@ if [ ! -x "$HOSTAPD_PMKID" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# hostapd del sistema para los escenarios open/wpa2/enterprise/wep.
+# hostapd del sistema para los escenarios open/wpa2/enterprise/wep/wps.
 # Se resuelve su ruta completa (bajo sudo, /usr/sbin puede no estar en el PATH).
 # ------------------------------------------------------------------------------
 HOSTAPD_SYS="$(command -v hostapd || echo /usr/sbin/hostapd)"
 if [ ! -x "$HOSTAPD_SYS" ]; then
   echo "[-] ERROR: no se encuentra el binario hostapd tras intentar instalarlo."
+  exit 1
+fi
+HOSTAPD_CLI="$(command -v hostapd_cli || echo /usr/sbin/hostapd_cli)"
+if [ ! -x "$HOSTAPD_CLI" ]; then
+  echo "[-] ERROR: no se encuentra hostapd_cli (necesario para el escenario WPS)."
   exit 1
 fi
 
@@ -396,6 +466,7 @@ ip netns exec ns_ap_pmkid    "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid/hostapd.conf"
 ip netns exec ns_ap_pmkid_nc "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid_nc/hostapd.conf"
 ip netns exec ns_ap_ent      "$HOSTAPD_SYS" -B "$LAB_DIR/enterprise/hostapd.conf"
 ip netns exec ns_ap_wep      "$HOSTAPD_SYS" -B "$LAB_DIR/wep/hostapd.conf"
+ip netns exec ns_ap_wps      "$HOSTAPD_SYS" -B "$LAB_DIR/wps/hostapd.conf"
 
 ip netns exec ns_ap_open     ip addr add 192.168.1.1/24 dev wlan_ap_open
 ip netns exec ns_ap_wpa2     ip addr add 192.168.2.1/24 dev wlan_ap_wpa2
@@ -403,6 +474,7 @@ ip netns exec ns_ap_pmkid    ip addr add 192.168.3.1/24 dev wlan_ap_pmkid
 ip netns exec ns_ap_pmkid_nc ip addr add 192.168.6.1/24 dev wlan_ap_pmk_nc
 ip netns exec ns_ap_ent      ip addr add 192.168.4.1/24 dev wlan_ap_ent
 ip netns exec ns_ap_wep      ip addr add 192.168.5.1/24 dev wlan_ap_wep
+ip netns exec ns_ap_wps      ip addr add 192.168.7.1/24 dev wlan_ap_wps
 
 sleep 2
 
@@ -503,6 +575,56 @@ ip netns exec ns_cli2_wep ip addr add 192.168.5.20/24 dev wlan_cli2_wep
 ip netns exec ns_cli1_wep sh -c "while true; do ip neigh flush all dev wlan_cli1_wep >/dev/null 2>&1; ping -c1 -W1 192.168.5.200 >/dev/null 2>&1; sleep 0.3; done" &
 ip netns exec ns_cli2_wep sh -c "while true; do ip neigh flush all dev wlan_cli2_wep >/dev/null 2>&1; ping -c1 -W1 192.168.5.201 >/dev/null 2>&1; sleep 0.3; done" &
 
+# ESCENARIO WPS
+WPS_CTRL="/var/run/hostapd_wps"
+
+# Comprobar que hostapd ha activado WPS (si el binario no tuviera soporte WPS,
+# no habría arrancado o get_config no mostraría wps_state=configured)
+if ip netns exec ns_ap_wps "$HOSTAPD_CLI" -p "$WPS_CTRL" -i wlan_ap_wps get_config 2>/dev/null | grep -q '^wps_state=configured'; then
+  echo "  [✓] AP he_wps con WPS activo (PIN de AP habilitado)"
+else
+  echo "  [!] AP he_wps: WPS NO aparece activo (revisa soporte WPS de hostapd)"
+fi
+
+# Cliente legítimo (realismo + verificación del AP)
+mkdir -p /var/run/wpa_supplicant_wps
+ip netns exec ns_cli_wps wpa_supplicant -B -Dnl80211 -i wlan_cli_wps -c "$LAB_DIR/wps/wpa.conf"
+WPS_OK=0
+for _ in $(seq 1 15); do
+  if ip netns exec ns_cli_wps wpa_cli -p /var/run/wpa_supplicant_wps -i wlan_cli_wps status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then
+    WPS_OK=1
+    break
+  fi
+  sleep 1
+done
+if [ "$WPS_OK" -eq 1 ]; then
+  echo "  [✓] Cliente he_wps conectado"
+else
+  echo "  [!] Cliente he_wps NO completó el handshake"
+fi
+ip netns exec ns_cli_wps ip addr add 192.168.7.10/24 dev wlan_cli_wps
+ip netns exec ns_cli_wps sh -c "while true; do ping -i 1 192.168.7.1 > /dev/null 2>&1; done" &
+
+# WATCHDOG ANTI-LOCKOUT: re-fija el PIN cada segundo. 'wps_ap_pin set' pone a
+# cero los contadores de fallos y desbloquea el AP => simula un router sin
+# protección contra fuerza bruta. Lee el PIN del propio hostapd para que no
+# aparezca en la lista de procesos. Para demostrar la defensa (lockout):
+#   sudo pkill -f LAB_WPS_WATCHDOG
+ip netns exec ns_ap_wps sh -c "
+  : LAB_WPS_WATCHDOG
+  CLI='$HOSTAPD_CLI -p $WPS_CTRL -i wlan_ap_wps'
+  while true; do
+    P=\$(\$CLI wps_ap_pin get 2>/dev/null)
+    if echo \"\$P\" | grep -qE '^[0-9]{8}\$'; then
+      \$CLI wps_ap_pin set \"\$P\" 0 > /dev/null 2>&1
+    fi
+    sleep 1
+  done
+" &
+
+# No dejar el PIN ni la clave en variables del script
+unset WPS_PIN WPS_PIN7 WPS_PASS
+
 sleep 1
 
 # ------------------------------------------------------------------------------
@@ -516,14 +638,16 @@ BSSID_PMKID=$(get_bssid ns_ap_pmkid    wlan_ap_pmkid)
 BSSID_PMKIDNC=$(get_bssid ns_ap_pmkid_nc wlan_ap_pmk_nc)
 BSSID_ENT=$(get_bssid ns_ap_ent      wlan_ap_ent)
 BSSID_WEP=$(get_bssid ns_ap_wep      wlan_ap_wep)
+BSSID_WPS=$(get_bssid ns_ap_wps      wlan_ap_wps)
 
 echo "[+] 9. Eliminando archivos de configuración en disco (Anti-Cheat)..."
 rm -f "$LAB_DIR"/open/*.conf "$LAB_DIR"/wpa2/*.conf "$LAB_DIR"/pmkid/*.conf \
-      "$LAB_DIR"/pmkid_nc/*.conf "$LAB_DIR"/enterprise/*.conf "$LAB_DIR"/wep/*.conf 2>/dev/null || true
+      "$LAB_DIR"/pmkid_nc/*.conf "$LAB_DIR"/enterprise/*.conf "$LAB_DIR"/wep/*.conf \
+      "$LAB_DIR"/wps/*.conf 2>/dev/null || true
 
 echo ""
 echo "=========================================================================="
-echo " [✓] LABORATORIO WI-FI COMPLETO (6 ESCENARIOS)"
+echo " [✓] LABORATORIO WI-FI COMPLETO (7 ESCENARIOS)"
 echo "=========================================================================="
 echo "Interfaces para el ALUMNO: wlan0 a wlan6"
 echo ""
@@ -534,9 +658,11 @@ echo " - he_pmkid      (Ch 11, BSSID $BSSID_PMKID)  -> PMKID CON clientes  (clav
 echo " - he_pmkid_nc   (Ch 4 , BSSID $BSSID_PMKIDNC)-> PMKID SIN clientes  (clave oculta: crackear)"
 echo " - he_enterprise (Ch 3 , BSSID $BSSID_ENT)    -> EAP-PEAP            (Usuario: alumno@iesvjp.es)"
 echo " - he_wep        (Ch 9 , BSSID $BSSID_WEP)    -> IVs / Reinyeccion ARP"
+echo " - he_wps        (Ch 7 , BSSID $BSSID_WPS)    -> WPS PIN (fuerza bruta: reaver / bully)"
 echo "=========================================================================="
 echo "Las claves WPA2 se almacenan como PMK (wpa_psk hex): no son visibles en"
 echo "claro ni en el script ni en los .conf. El alumno DEBE crackearlas."
-echo "NOTA: con 21 radios, las BSSID cambian respecto a versiones anteriores."
+echo "El PIN WPS y la clave de he_wps son ALEATORIOS en cada despliegue."
+echo "NOTA: con 23 radios, las BSSID cambian respecto a versiones anteriores."
 echo "      Usa SIEMPRE las BSSID mostradas arriba (o airodump-ng) para atacar."
 echo "=========================================================================="
