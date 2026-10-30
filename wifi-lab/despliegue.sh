@@ -532,7 +532,7 @@ echo " - he_open       (Ch 1 , BSSID $BSSID_OPEN)   -> Captura HTTP POST (texto 
 echo " - he_wpa2       (Ch 6 , BSSID $BSSID_WPA2)   -> Handshake 4-Way     (clave oculta: crackear)"
 echo " - he_pmkid      (Ch 11, BSSID $BSSID_PMKID)  -> PMKID CON clientes  (clave oculta: crackear)"
 echo " - he_pmkid_nc   (Ch 4 , BSSID $BSSID_PMKIDNC)-> PMKID SIN clientes  (clave oculta: crackear)"
-echo " - he_enterprise (Ch 3 , BSSID $BSSID_ENT)    -> EAP-PEAP            (Usuario: student_user@domain.lab)"
+echo " - he_enterprise (Ch 3 , BSSID $BSSID_ENT)    -> EAP-PEAP            (Usuario: alumno@iesvjp.es)"
 echo " - he_wep        (Ch 9 , BSSID $BSSID_WEP)    -> IVs / Reinyeccion ARP"
 echo "=========================================================================="
 echo "Las claves WPA2 se almacenan como PMK (wpa_psk hex): no son visibles en"

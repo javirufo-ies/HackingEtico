@@ -65,11 +65,10 @@ sudo iw dev wlan0 set channel 11
 | `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | `sunshine` |
 | `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `butterfly` |
 | `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `football` |
-| `he_enterprise` | 3  | WPA2-EAP    | Análisis pasivo de EAP-PEAP                | Identidad `student_user@domain.lab` · tipo EAP 25 (PEAP) · cert. `radius.domain.lab` |
+| `he_enterprise` | 3  | WPA2-EAP    | Análisis pasivo de EAP-PEAP                | Identidad `alumno@iesvjp.es` · tipo EAP 25 (PEAP) · cert. `radius.domain.lab` |
 
-Las tres claves WPA2 están en `rockyou.txt`. El password interno del cliente
-Enterprise (`EnterprisePass2026`) **no** es un objetivo de la práctica: el
-alumno solo debe identificar la identidad en claro y el método EAP.
+Las tres claves WPA2 y la contraseña del usuario Enterprise (`computer`)
+están en `rockyou.txt`.
 
 ---
 
@@ -725,7 +724,7 @@ Se lee así:
 | `eap.code` | `eap.type` | Significado |
 |---|---|---|
 | 1 (Request) | 1 | El AP pide la identidad |
-| 2 (Response) | 1 | El cliente responde con `student_user@domain.lab` **en claro** |
+| 2 (Response) | 1 | El cliente responde con `alumno@iesvjp.es` **en claro** |
 | 1 (Request) | 25 | El servidor propone PEAP (*PEAP Start*) |
 | 1 / 2 | 25 | Túnel TLS: a partir de aquí todo va cifrado |
 | 3 (Success) | | Autenticación correcta; después viene el 4-way |
@@ -742,7 +741,7 @@ Debe aparecer `radius.domain.lab`. Es lo que debería comprobar el cliente, y
 lo que imitaría un AP falso. Si la línea no sale, la sesión ha usado TLS 1.3,
 que cifra el certificado. No afecta al resultado de la práctica.
 
-**Resultado esperado:** identidad `student_user@domain.lab` (viaja en claro en
+**Resultado esperado:** identidad `alumno@iesvjp.es` (viaja en claro en
 la fase externa), tipo EAP 25 = PEAP y certificado `CN=radius.domain.lab`
 autofirmado.
 
@@ -817,10 +816,10 @@ sudo aireplay-ng -0 0 -a <BSSID_ENT> -c <MAC_CLIENTE> wlan0mon   # Ctrl+C al cap
 `hostapd-wpe` imprime (y guarda en `/etc/hostapd-wpe/hostapd-wpe.log`) algo así:
 
 ```
-username:    student_user@domain.lab
+username:    alumno@iesvjp.es
 challenge:   <16 hex>
 response:    <48 hex>
-jtr NETNTLM: student_user@domain.lab:$NETNTLM$<challenge>$<response>
+jtr NETNTLM: alumno@iesvjp.es:$NETNTLM$<challenge>$<response>
 hashcat:     <challenge>:<response>
 ```
 
@@ -835,16 +834,8 @@ echo '<challenge>:<response>' > ent.hash
 hashcat -m 5500 ent.hash /usr/share/wordlists/rockyou.txt
 ```
 
-**Resultado esperado:** la contraseña de `he_enterprise` es
-`EnterprisePass2026`, **elegida a propósito fuera de `rockyou.txt`**. Con el
-diccionario de serie el crackeo **falla**: el objetivo del lab es *capturar* el
-reto/respuesta, no recuperar la clave. Para ver también el crackeo, añade la
-palabra a un diccionario propio:
-
-```bash
-echo 'EnterprisePass2026' > /tmp/dic_ent.txt
-asleap -C <challenge> -R <response> -W /tmp/dic_ent.txt
-```
+**Resultado esperado:** la contraseña de `alumno@iesvjp.es` en
+`he_enterprise` es `computer`, que está en `rockyou.txt`.
 
 **Recuperar el hash NT aunque la clave no esté en diccionario.** La respuesta
 MSCHAPv2 se puede reducir a un solo DES (2^56) y obtener el hash NT con
