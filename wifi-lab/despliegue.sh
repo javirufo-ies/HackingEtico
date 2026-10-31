@@ -449,8 +449,15 @@ if [ ! -x "$HOSTAPD_PMKID" ]; then
 fi
 
 # El escenario WPS exige que hostapd-pmkid esté compilado con CONFIG_WPS=y.
-# (La cadena 'wps_state' solo existe en el binario si se compiló con WPS.)
-if ! grep -qa 'wps_state' "$HOSTAPD_PMKID"; then
+# Prueba real: se le pasa una config mínima con 'wps_state' sobre una interfaz
+# inexistente. hostapd analiza la config ANTES de tocar la interfaz, así que si
+# no tiene WPS se queja de 'unknown configuration item' y si lo tiene falla
+# después, solo por la interfaz.
+WPS_PROBE="$(mktemp)"
+printf 'interface=lab_wps_probe\ndriver=nl80211\nssid=probe\nwps_state=2\neap_server=1\n' > "$WPS_PROBE"
+WPS_PROBE_OUT="$(timeout 5 "$HOSTAPD_PMKID" "$WPS_PROBE" 2>&1 || true)"
+rm -f "$WPS_PROBE"
+if echo "$WPS_PROBE_OUT" | grep -q "unknown configuration item 'wps_state'"; then
   echo "[-] ERROR: $HOSTAPD_PMKID no tiene soporte WPS (falta CONFIG_WPS=y)."
   echo "    En compila_hostapd_pmkid.sh, justo después de crear el .config"
   echo "    (cp defconfig .config), añade:   echo \"CONFIG_WPS=y\" >> .config"
