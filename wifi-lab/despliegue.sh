@@ -337,6 +337,7 @@ EOF
 #     cabe en una sesión de clase.
 #   - hostapd bloquea el PIN tras 3 fallos; un watchdog (paso 8) lo desbloquea
 #     cada segundo para simular un router sin protección anti-fuerza bruta.
+#   - Usa hostapd-pmkid (parche del ACK), no el hostapd del sistema.
 # ------------------------------------------------------------------------------
 wps_checksum() {
   local p=$((10#$1)) acc=0
@@ -427,9 +428,12 @@ for i in {0..6}; do
 done
 
 # ------------------------------------------------------------------------------
-# hostapd parcheado para los escenarios PMKID (he_pmkid, he_pmkid_nc).
+# hostapd parcheado para los escenarios PMKID (he_pmkid, he_pmkid_nc) y WPS.
 # El hostapd de serie no emite el PMKID en el M1 con WPA-PSK; se compila uno
 # parcheado con compila_hostapd_pmkid.sh (en la misma carpeta que este script).
+# he_wps también lo usa por el parche del ACK: reaver/bully se asocian desde
+# modo monitor y, sin ese parche, hostapd los descarta tras la asociación
+# (EAPOL-Start sin respuesta => "Receive timeout occurred").
 # ------------------------------------------------------------------------------
 HOSTAPD_PMKID="/usr/local/sbin/hostapd-pmkid"
 if [ ! -x "$HOSTAPD_PMKID" ]; then
@@ -444,8 +448,18 @@ if [ ! -x "$HOSTAPD_PMKID" ]; then
   fi
 fi
 
+# El escenario WPS exige que hostapd-pmkid esté compilado con CONFIG_WPS=y.
+# (La cadena 'wps_state' solo existe en el binario si se compiló con WPS.)
+if ! grep -qa 'wps_state' "$HOSTAPD_PMKID"; then
+  echo "[-] ERROR: $HOSTAPD_PMKID no tiene soporte WPS (falta CONFIG_WPS=y)."
+  echo "    En compila_hostapd_pmkid.sh, justo después de crear el .config"
+  echo "    (cp defconfig .config), añade:   echo \"CONFIG_WPS=y\" >> .config"
+  echo "    y recompila:                     sudo ./compila_hostapd_pmkid.sh --force"
+  exit 1
+fi
+
 # ------------------------------------------------------------------------------
-# hostapd del sistema para los escenarios open/wpa2/enterprise/wep/wps.
+# hostapd del sistema para los escenarios open/wpa2/enterprise/wep.
 # Se resuelve su ruta completa (bajo sudo, /usr/sbin puede no estar en el PATH).
 # ------------------------------------------------------------------------------
 HOSTAPD_SYS="$(command -v hostapd || echo /usr/sbin/hostapd)"
@@ -466,7 +480,7 @@ ip netns exec ns_ap_pmkid    "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid/hostapd.conf"
 ip netns exec ns_ap_pmkid_nc "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid_nc/hostapd.conf"
 ip netns exec ns_ap_ent      "$HOSTAPD_SYS" -B "$LAB_DIR/enterprise/hostapd.conf"
 ip netns exec ns_ap_wep      "$HOSTAPD_SYS" -B "$LAB_DIR/wep/hostapd.conf"
-ip netns exec ns_ap_wps      "$HOSTAPD_SYS" -B "$LAB_DIR/wps/hostapd.conf"
+ip netns exec ns_ap_wps      "$HOSTAPD_PMKID" -B "$LAB_DIR/wps/hostapd.conf"
 
 ip netns exec ns_ap_open     ip addr add 192.168.1.1/24 dev wlan_ap_open
 ip netns exec ns_ap_wpa2     ip addr add 192.168.2.1/24 dev wlan_ap_wpa2
@@ -583,7 +597,7 @@ WPS_CTRL="/var/run/hostapd_wps"
 if ip netns exec ns_ap_wps "$HOSTAPD_CLI" -p "$WPS_CTRL" -i wlan_ap_wps get_config 2>/dev/null | grep -q '^wps_state=configured'; then
   echo "  [✓] AP he_wps con WPS activo (PIN de AP habilitado)"
 else
-  echo "  [!] AP he_wps: WPS NO aparece activo (revisa soporte WPS de hostapd)"
+  echo "  [!] AP he_wps: WPS NO aparece activo (revisa CONFIG_WPS en hostapd-pmkid)"
 fi
 
 # Cliente legítimo (realismo + verificación del AP)
