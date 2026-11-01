@@ -3,11 +3,14 @@
 # ==============================================================================
 # LABORATORIO WI-FI (mac80211_hwsim) HACKING ÉTICO
 # Francisco Javier Rufo Mendo
-#   - 23 radios virtuales
+#   - 30 radios virtuales
 #   - Interfaces de ALUMNO: wlan0 .. wlan6
 #   - Escenario PMKID CON clientes : he_pmkid
 #   - Escenario PMKID SIN clientes : he_pmkid_nc  (no clientes / clientless)
 #   - Escenario WPS vulnerable     : he_wps       (fuerza bruta del PIN)
+#   - WPA3 modo transición         : he_wpa3_tm   (WPA2/WPA3 mixto)
+#   - WPA3 puro (solo SAE)         : he_wpa3      (diccionario ONLINE)
+#   - WPA3 downgrade (Dragonblood) : he_wpa3_dg   (AP gemelo WPA2)
 # ==============================================================================
 
 set -e
@@ -46,6 +49,7 @@ LAB_DIR="/opt/wifi-lab"
 
 echo "[+] 1. Limpiando entorno previo..."
 pkill -9 -f LAB_WPS_WATCHDOG 2>/dev/null || true
+pkill -9 -f LAB_WPA3_LOOP 2>/dev/null || true
 pkill -9 hostapd 2>/dev/null || true
 pkill -9 wpa_supplicant 2>/dev/null || true
 pkill -9 nc 2>/dev/null || true
@@ -55,7 +59,7 @@ pkill -9 arping 2>/dev/null || true
 pkill -9 -f "wlan_cli_ent reassociate" 2>/dev/null || true
 
 # Limpiar sockets residuales
-rm -rf /var/run/wpa_supplicant* /var/run/hostapd_wps 2>/dev/null || true
+rm -rf /var/run/wpa_supplicant* /var/run/hostapd_wps /var/run/hostapd_dg 2>/dev/null || true
 
 # Eliminar namespaces previos
 for ns in $(ip netns list | awk '{print $1}'); do
@@ -81,8 +85,8 @@ modprobe -r mac80211_hwsim 2>/dev/null || true
 
 sleep 2
 
-echo "[+] 2. Cargando mac80211_hwsim (23 radios)..."
-modprobe mac80211_hwsim radios=23
+echo "[+] 2. Cargando mac80211_hwsim (30 radios)..."
+modprobe mac80211_hwsim radios=30
 sleep 2
 
 rfkill unblock wifi 2>/dev/null || true
@@ -90,7 +94,7 @@ rfkill unblock all 2>/dev/null || true
 
 echo "[+] 3. Asignando nombres de interfaz..."
 
-# 7 interfaces para el alumno (wlan0..wlan6) + 16 para el laboratorio = 23
+# 7 interfaces para el alumno (wlan0..wlan6) + 23 para el laboratorio = 30
 TARGETS=(
   "wlan0" "wlan1" "wlan2" "wlan3" "wlan4" "wlan5" "wlan6"
   "wlan_ap_open" "wlan_cli_open"
@@ -100,12 +104,15 @@ TARGETS=(
   "wlan_ap_ent" "wlan_cli_ent"
   "wlan_ap_wep" "wlan_cli1_wep" "wlan_cli2_wep"
   "wlan_ap_wps" "wlan_cli_wps"
+  "wlan_ap_tm" "wlan_cli3_tm" "wlan_cli2_tm"
+  "wlan_ap_wpa3" "wlan_cli_wpa3"
+  "wlan_ap_dg" "wlan_cli_dg"
 )
 
 mapfile -t HW_IFS < <(ip link show | grep -oP '(?<=: )\b(wlan|wfx)\d+\b' | sort -V)
 
-if [ "${#HW_IFS[@]}" -lt 23 ]; then
-    echo "[-] ERROR: Se esperaban 23 interfaces inalámbricas, pero se detectaron ${#HW_IFS[@]}."
+if [ "${#HW_IFS[@]}" -lt 30 ]; then
+    echo "[-] ERROR: Se esperaban 30 interfaces inalámbricas, pero se detectaron ${#HW_IFS[@]}."
     exit 1
 fi
 
@@ -138,7 +145,7 @@ done
 sleep 1
 
 echo "[+] 4. Generando configuraciones..."
-mkdir -p "$LAB_DIR"/{open,wpa2,pmkid,pmkid_nc,enterprise,wep,wps}
+mkdir -p "$LAB_DIR"/{open,wpa2,pmkid,pmkid_nc,enterprise,wep,wps,wpa3_tm,wpa3,wpa3_dg}
 
 # ------------------------------------------------------------------------------
 # ESCENARIO 1: OPEN
@@ -388,6 +395,122 @@ network={
 }
 EOF
 
+# ------------------------------------------------------------------------------
+# ESCENARIO 7: WPA3 EN MODO TRANSICIÓN (WPA2/WPA3 mixto) - he_wpa3_tm
+#   El AP acepta SAE (WPA3) y PSK (WPA2) con la MISMA contraseña. PMF opcional
+#   (ieee80211w=1) para no romper a los clientes antiguos; sae_require_mfp=1
+#   obliga a PMF solo a los clientes SAE.
+#   - Cliente WPA3 (SAE + PMF): inmune al deauth falsificado.
+#   - Cliente WPA2 "antiguo" (sin PMF): deauth + handshake + diccionario.
+#   SAE necesita la passphrase en claro (no admite PMK hex): no hay anti-cheat.
+# ------------------------------------------------------------------------------
+cat << 'EOF' > "$LAB_DIR/wpa3_tm/hostapd.conf"
+interface=wlan_ap_tm
+driver=nl80211
+ssid=he_wpa3_tm
+hw_mode=g
+channel=2
+wpa=2
+wpa_key_mgmt=WPA-PSK SAE
+rsn_pairwise=CCMP
+wpa_passphrase=princess
+ieee80211w=1
+sae_require_mfp=1
+EOF
+
+cat << 'EOF' > "$LAB_DIR/wpa3_tm/wpa3.conf"
+ctrl_interface=/var/run/wpa_supplicant_tm3
+p2p_disabled=1
+network={
+    ssid="he_wpa3_tm"
+    key_mgmt=SAE
+    psk="princess"
+    ieee80211w=2
+}
+EOF
+
+cat << 'EOF' > "$LAB_DIR/wpa3_tm/wpa2.conf"
+ctrl_interface=/var/run/wpa_supplicant_tm2
+p2p_disabled=1
+network={
+    ssid="he_wpa3_tm"
+    key_mgmt=WPA-PSK
+    psk="princess"
+    ieee80211w=0
+}
+EOF
+
+# ------------------------------------------------------------------------------
+# ESCENARIO 8: WPA3 PURO (solo SAE, PMF obligatoria) - he_wpa3
+#   No hay material crackeable offline. Único ataque: diccionario ONLINE (un
+#   intercambio SAE completo por contraseña). Contraseña débil a propósito.
+#   El cliente se reasocia cada 30 s para que se vea el intercambio SAE en una
+#   captura pasiva (el deauth no funciona: PMF).
+# ------------------------------------------------------------------------------
+cat << 'EOF' > "$LAB_DIR/wpa3/hostapd.conf"
+interface=wlan_ap_wpa3
+driver=nl80211
+ssid=he_wpa3
+hw_mode=g
+channel=5
+wpa=2
+wpa_key_mgmt=SAE
+rsn_pairwise=CCMP
+sae_password=iloveyou
+ieee80211w=2
+EOF
+
+cat << 'EOF' > "$LAB_DIR/wpa3/wpa.conf"
+ctrl_interface=/var/run/wpa_supplicant_wpa3
+p2p_disabled=1
+network={
+    ssid="he_wpa3"
+    key_mgmt=SAE
+    sae_password="iloveyou"
+    ieee80211w=2
+}
+EOF
+
+# ------------------------------------------------------------------------------
+# ESCENARIO 9: WPA3 DOWNGRADE (Dragonblood) - he_wpa3_dg
+#   El AP es SOLO WPA3 (SAE + PMF obligatoria), pero el perfil del cliente
+#   acepta también WPA2-PSK (key_mgmt="SAE WPA-PSK", PMF opcional), como un
+#   móvil que guardó la red como "WPA2/WPA3". Un AP gemelo solo WPA2 con el
+#   mismo SSID consigue que el cliente le envíe un M2 calculado con la clave
+#   real => M1+M2 crackeable offline. El cliente se reasocia cada 30 s.
+#   Mitigación demostrable: sudo DG_TRANSITION_DISABLE=1 ./despliegue.sh
+#   (el AP envía Transition Disable y el cliente deja de aceptar WPA2).
+# ------------------------------------------------------------------------------
+DG_TRANSITION_DISABLE="${DG_TRANSITION_DISABLE:-0}"
+
+cat << 'EOF' > "$LAB_DIR/wpa3_dg/hostapd.conf"
+interface=wlan_ap_dg
+driver=nl80211
+ctrl_interface=/var/run/hostapd_dg
+ssid=he_wpa3_dg
+hw_mode=g
+channel=10
+wpa=2
+wpa_key_mgmt=SAE
+rsn_pairwise=CCMP
+sae_password=babygirl
+ieee80211w=2
+EOF
+if [ "$DG_TRANSITION_DISABLE" = "1" ]; then
+  echo "transition_disable=0x01" >> "$LAB_DIR/wpa3_dg/hostapd.conf"
+fi
+
+cat << 'EOF' > "$LAB_DIR/wpa3_dg/wpa.conf"
+ctrl_interface=/var/run/wpa_supplicant_dg
+p2p_disabled=1
+network={
+    ssid="he_wpa3_dg"
+    key_mgmt=SAE WPA-PSK
+    psk="babygirl"
+    ieee80211w=1
+}
+EOF
+
 echo "[+] 5. Creando Network Namespaces y aislando radios virtuales..."
 
 NAMESPACES=(
@@ -398,6 +521,9 @@ NAMESPACES=(
   "ns_ap_ent" "ns_cli_ent"
   "ns_ap_wep" "ns_cli1_wep" "ns_cli2_wep"
   "ns_ap_wps" "ns_cli_wps"
+  "ns_ap_tm" "ns_cli3_tm" "ns_cli2_tm"
+  "ns_ap_wpa3" "ns_cli_wpa3"
+  "ns_ap_dg" "ns_cli_dg"
 )
 
 IFS_TO_MOVE=(
@@ -408,6 +534,9 @@ IFS_TO_MOVE=(
   "wlan_ap_ent" "wlan_cli_ent"
   "wlan_ap_wep" "wlan_cli1_wep" "wlan_cli2_wep"
   "wlan_ap_wps" "wlan_cli_wps"
+  "wlan_ap_tm" "wlan_cli3_tm" "wlan_cli2_tm"
+  "wlan_ap_wpa3" "wlan_cli_wpa3"
+  "wlan_ap_dg" "wlan_cli_dg"
 )
 
 for idx in "${!NAMESPACES[@]}"; do
@@ -480,6 +609,18 @@ if [ ! -x "$HOSTAPD_CLI" ]; then
   exit 1
 fi
 
+# Los escenarios WPA3 necesitan SAE en el hostapd del sistema. Misma técnica
+# que con WPS: config mínima sobre una interfaz inexistente.
+SAE_PROBE="$(mktemp)"
+printf 'interface=lab_sae_probe\ndriver=nl80211\nssid=probe\nwpa=2\nwpa_key_mgmt=SAE\nrsn_pairwise=CCMP\nieee80211w=2\nsae_password=probe1234\n' > "$SAE_PROBE"
+SAE_PROBE_OUT="$(timeout 5 "$HOSTAPD_SYS" "$SAE_PROBE" 2>&1 || true)"
+rm -f "$SAE_PROBE"
+if echo "$SAE_PROBE_OUT" | grep -qiE "invalid key_mgmt|unknown configuration item"; then
+  echo "[-] ERROR: $HOSTAPD_SYS no tiene soporte SAE (WPA3)."
+  echo "$SAE_PROBE_OUT" | grep -iE "invalid|unknown" | head -n 3
+  exit 1
+fi
+
 echo "[+] 6. Arrancando Puntos de Acceso (APs)..."
 ip netns exec ns_ap_open     "$HOSTAPD_SYS" -B "$LAB_DIR/open/hostapd.conf"
 ip netns exec ns_ap_wpa2     "$HOSTAPD_SYS" -B "$LAB_DIR/wpa2/hostapd.conf"
@@ -488,6 +629,9 @@ ip netns exec ns_ap_pmkid_nc "$HOSTAPD_PMKID" -B "$LAB_DIR/pmkid_nc/hostapd.conf
 ip netns exec ns_ap_ent      "$HOSTAPD_SYS" -B "$LAB_DIR/enterprise/hostapd.conf"
 ip netns exec ns_ap_wep      "$HOSTAPD_SYS" -B "$LAB_DIR/wep/hostapd.conf"
 ip netns exec ns_ap_wps      "$HOSTAPD_PMKID" -B "$LAB_DIR/wps/hostapd.conf"
+ip netns exec ns_ap_tm       "$HOSTAPD_SYS" -B "$LAB_DIR/wpa3_tm/hostapd.conf"
+ip netns exec ns_ap_wpa3     "$HOSTAPD_SYS" -B "$LAB_DIR/wpa3/hostapd.conf"
+ip netns exec ns_ap_dg       "$HOSTAPD_SYS" -B "$LAB_DIR/wpa3_dg/hostapd.conf"
 
 ip netns exec ns_ap_open     ip addr add 192.168.1.1/24 dev wlan_ap_open
 ip netns exec ns_ap_wpa2     ip addr add 192.168.2.1/24 dev wlan_ap_wpa2
@@ -496,6 +640,9 @@ ip netns exec ns_ap_pmkid_nc ip addr add 192.168.6.1/24 dev wlan_ap_pmk_nc
 ip netns exec ns_ap_ent      ip addr add 192.168.4.1/24 dev wlan_ap_ent
 ip netns exec ns_ap_wep      ip addr add 192.168.5.1/24 dev wlan_ap_wep
 ip netns exec ns_ap_wps      ip addr add 192.168.7.1/24 dev wlan_ap_wps
+ip netns exec ns_ap_tm       ip addr add 192.168.8.1/24 dev wlan_ap_tm
+ip netns exec ns_ap_wpa3     ip addr add 192.168.9.1/24 dev wlan_ap_wpa3
+ip netns exec ns_ap_dg       ip addr add 192.168.10.1/24 dev wlan_ap_dg
 
 sleep 2
 
@@ -646,6 +793,55 @@ ip netns exec ns_ap_wps sh -c "
 # No dejar el PIN ni la clave en variables del script
 unset WPS_PIN WPS_PIN7 WPS_PASS
 
+# ESCENARIOS WPA3 ---------------------------------------------------------------
+# espera_cliente <namespace> <interfaz> <ctrl_dir> <etiqueta>
+espera_cliente() {
+  local i
+  for i in $(seq 1 15); do
+    if ip netns exec "$1" wpa_cli -p "$3" -i "$2" status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then
+      echo "  [✓] Cliente $4 conectado"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "  [!] Cliente $4 NO completó la conexión"
+  return 0
+}
+
+# he_wpa3_tm: cliente WPA3 (SAE+PMF, ieee80211w=2) y cliente WPA2 antiguo (sin PMF).
+# El AP tiene PMF opcional (w=1) + sae_require_mfp=1, así que el cliente SAE
+# entra con PMF y el WPA2 entra sin ella: justo el contraste de la práctica.
+mkdir -p /var/run/wpa_supplicant_tm3 /var/run/wpa_supplicant_tm2
+ip netns exec ns_cli3_tm wpa_supplicant -B -Dnl80211 -i wlan_cli3_tm -c "$LAB_DIR/wpa3_tm/wpa3.conf"
+ip netns exec ns_cli2_tm wpa_supplicant -B -Dnl80211 -i wlan_cli2_tm -c "$LAB_DIR/wpa3_tm/wpa2.conf"
+espera_cliente ns_cli3_tm wlan_cli3_tm /var/run/wpa_supplicant_tm3 "he_wpa3_tm (WPA3/SAE)"
+espera_cliente ns_cli2_tm wlan_cli2_tm /var/run/wpa_supplicant_tm2 "he_wpa3_tm (WPA2 antiguo)"
+ip netns exec ns_cli3_tm ip addr add 192.168.8.10/24 dev wlan_cli3_tm
+ip netns exec ns_cli2_tm ip addr add 192.168.8.20/24 dev wlan_cli2_tm
+ip netns exec ns_cli3_tm sh -c ": LAB_WPA3_LOOP; while true; do ping -i 1 192.168.8.1 > /dev/null 2>&1; done" &
+ip netns exec ns_cli2_tm sh -c ": LAB_WPA3_LOOP; while true; do ping -i 1 192.168.8.1 > /dev/null 2>&1; done" &
+
+# he_wpa3: cliente SAE con reasociación periódica (SAE visible en captura pasiva)
+mkdir -p /var/run/wpa_supplicant_wpa3
+ip netns exec ns_cli_wpa3 wpa_supplicant -B -Dnl80211 -i wlan_cli_wpa3 -c "$LAB_DIR/wpa3/wpa.conf"
+espera_cliente ns_cli_wpa3 wlan_cli_wpa3 /var/run/wpa_supplicant_wpa3 "he_wpa3 (SAE)"
+ip netns exec ns_cli_wpa3 ip addr add 192.168.9.10/24 dev wlan_cli_wpa3
+ip netns exec ns_cli_wpa3 sh -c ": LAB_WPA3_LOOP; while true; do ping -i 1 192.168.9.1 > /dev/null 2>&1; done" &
+ip netns exec ns_cli_wpa3 sh -c ": LAB_WPA3_LOOP; while true; do sleep 30; wpa_cli -p /var/run/wpa_supplicant_wpa3 -i wlan_cli_wpa3 reassociate > /dev/null 2>&1; done" &
+
+# he_wpa3_dg: cliente con perfil SAE+WPA-PSK. Cada 30 s vuelve a elegir red:
+# select_network quita el bloqueo temporal que deja un intento fallido contra
+# el AP gemelo, y reassociate fuerza un escaneo y una nueva elección de BSS.
+mkdir -p /var/run/wpa_supplicant_dg
+ip netns exec ns_cli_dg wpa_supplicant -B -Dnl80211 -i wlan_cli_dg -c "$LAB_DIR/wpa3_dg/wpa.conf"
+espera_cliente ns_cli_dg wlan_cli_dg /var/run/wpa_supplicant_dg "he_wpa3_dg (SAE, perfil con WPA2)"
+ip netns exec ns_cli_dg ip addr add 192.168.10.10/24 dev wlan_cli_dg
+ip netns exec ns_cli_dg sh -c ": LAB_WPA3_LOOP; while true; do ping -i 1 192.168.10.1 > /dev/null 2>&1; done" &
+ip netns exec ns_cli_dg sh -c ": LAB_WPA3_LOOP; C='wpa_cli -p /var/run/wpa_supplicant_dg -i wlan_cli_dg'; while true; do sleep 30; \$C select_network 0 > /dev/null 2>&1; sleep 1; \$C reassociate > /dev/null 2>&1; done" &
+if [ "$DG_TRANSITION_DISABLE" = "1" ]; then
+  echo "  [i] he_wpa3_dg con Transition Disable ACTIVO (demostración de la mitigación)"
+fi
+
 sleep 1
 
 # ------------------------------------------------------------------------------
@@ -660,15 +856,19 @@ BSSID_PMKIDNC=$(get_bssid ns_ap_pmkid_nc wlan_ap_pmk_nc)
 BSSID_ENT=$(get_bssid ns_ap_ent      wlan_ap_ent)
 BSSID_WEP=$(get_bssid ns_ap_wep      wlan_ap_wep)
 BSSID_WPS=$(get_bssid ns_ap_wps      wlan_ap_wps)
+BSSID_TM=$(get_bssid ns_ap_tm        wlan_ap_tm)
+BSSID_WPA3=$(get_bssid ns_ap_wpa3    wlan_ap_wpa3)
+BSSID_DG=$(get_bssid ns_ap_dg        wlan_ap_dg)
 
 echo "[+] 9. Eliminando archivos de configuración en disco (Anti-Cheat)..."
 rm -f "$LAB_DIR"/open/*.conf "$LAB_DIR"/wpa2/*.conf "$LAB_DIR"/pmkid/*.conf \
       "$LAB_DIR"/pmkid_nc/*.conf "$LAB_DIR"/enterprise/*.conf "$LAB_DIR"/wep/*.conf \
-      "$LAB_DIR"/wps/*.conf 2>/dev/null || true
+      "$LAB_DIR"/wps/*.conf "$LAB_DIR"/wpa3_tm/*.conf "$LAB_DIR"/wpa3/*.conf \
+      "$LAB_DIR"/wpa3_dg/*.conf 2>/dev/null || true
 
 echo ""
 echo "=========================================================================="
-echo " [✓] LABORATORIO WI-FI COMPLETO (7 ESCENARIOS)"
+echo " [✓] LABORATORIO WI-FI COMPLETO (10 ESCENARIOS)"
 echo "=========================================================================="
 echo "Interfaces para el ALUMNO: wlan0 a wlan6"
 echo ""
@@ -680,10 +880,13 @@ echo " - he_pmkid_nc   (Ch 4 , BSSID $BSSID_PMKIDNC)-> PMKID SIN clientes  (clav
 echo " - he_enterprise (Ch 3 , BSSID $BSSID_ENT)    -> EAP-PEAP            (Usuario: alumno@iesvjp.es)"
 echo " - he_wep        (Ch 9 , BSSID $BSSID_WEP)    -> IVs / Reinyeccion ARP"
 echo " - he_wps        (Ch 7 , BSSID $BSSID_WPS)    -> WPS PIN (fuerza bruta: reaver / bully)"
+echo " - he_wpa3_tm    (Ch 2 , BSSID $BSSID_TM)     -> WPA3 transicion: atacar la parte WPA2"
+echo " - he_wpa3       (Ch 5 , BSSID $BSSID_WPA3)   -> WPA3 puro (SAE): diccionario ONLINE"
+echo " - he_wpa3_dg    (Ch 10, BSSID $BSSID_DG)     -> WPA3 downgrade: AP gemelo WPA2"
 echo "=========================================================================="
 echo "Las claves WPA2 se almacenan como PMK (wpa_psk hex): no son visibles en"
 echo "claro ni en el script ni en los .conf. El alumno DEBE crackearlas."
 echo "El PIN WPS y la clave de he_wps son ALEATORIOS en cada despliegue."
-echo "NOTA: con 23 radios, las BSSID cambian respecto a versiones anteriores."
+echo "NOTA: con 30 radios, las BSSID cambian respecto a versiones anteriores."
 echo "      Usa SIEMPRE las BSSID mostradas arriba (o airodump-ng) para atacar."
 echo "=========================================================================="

