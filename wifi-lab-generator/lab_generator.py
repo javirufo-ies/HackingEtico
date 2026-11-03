@@ -28,6 +28,7 @@ import argparse
 import datetime
 import os
 import re
+import shutil
 import sys
 import textwrap
 
@@ -1009,12 +1010,32 @@ def emitir(cfg, conf_path):
 
 
 # ------------------------------------------------------------------------------
+def copiar_auxiliar(nombre, destino_dir):
+    """Copia un script auxiliar (si existe junto al generador) al directorio del
+    laboratorio y lo deja ejecutable. Devuelve True si lo copió."""
+    origen = os.path.join(os.path.dirname(os.path.abspath(__file__)), nombre)
+    if not os.path.isfile(origen):
+        print(f"[aviso] no encuentro '{nombre}' junto al generador; "
+              f"cópialo a mano en el laboratorio si hace falta.", file=sys.stderr)
+        return False
+    dst = os.path.join(destino_dir, nombre)
+    shutil.copy2(origen, dst)
+    os.chmod(dst, 0o755)
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser(
-        description="Genera un script de despliegue de laboratorio Wi-Fi a partir de un .conf")
+        description="Genera un laboratorio Wi-Fi (script de despliegue) a partir de un .conf")
     ap.add_argument("config", help="fichero de configuración del laboratorio")
-    ap.add_argument("-o", "--output", default="despliegue.sh", help="script de salida (def: despliegue.sh)")
+    ap.add_argument("name", nargs="?",
+                    help="nombre del laboratorio: crea un directorio con ese nombre y mete "
+                         "dentro todos los ficheros. Si se omite, se genera un único script.")
+    ap.add_argument("-o", "--output",
+                    help="nombre del script de despliegue (def: despliegue.sh)")
     ap.add_argument("--dict", help="sobrescribe la directiva 'dict' del fichero")
+    ap.add_argument("-f", "--force", action="store_true",
+                    help="sobrescribe el directorio del laboratorio si ya existe")
     args = ap.parse_args()
 
     try:
@@ -1027,12 +1048,57 @@ def main():
         print(f"[-] Error de configuración: {e}", file=sys.stderr)
         sys.exit(1)
 
-    with open(args.output, "w", encoding="utf-8") as f:
-        f.write(script)
-    os.chmod(args.output, 0o755)
+    script_name = args.output or "despliegue.sh"
 
-    print(f"[OK] Generado {args.output}  ({len(cfg['plan'])} escenarios, {cfg['total']} radios)")
-    print(f"     Despliega en la VM:  sudo ./{os.path.basename(args.output)}")
+    # ---- Modo directorio: lab_generator.py CONFIG NOMBRE ----
+    if args.name:
+        labdir = args.name
+        if os.path.exists(labdir):
+            if not os.path.isdir(labdir):
+                print(f"[-] '{labdir}' existe y no es un directorio.", file=sys.stderr)
+                sys.exit(1)
+            if not args.force:
+                print(f"[-] El directorio '{labdir}' ya existe. Usa -f para sobrescribirlo.",
+                      file=sys.stderr)
+                sys.exit(1)
+        os.makedirs(labdir, exist_ok=True)
+
+        # Script de despliegue
+        ruta_script = os.path.join(labdir, script_name)
+        with open(ruta_script, "w", encoding="utf-8") as f:
+            f.write(script)
+        os.chmod(ruta_script, 0o755)
+
+        # Copia del .conf (reproducibilidad: regenerar el mismo lab más tarde)
+        shutil.copy2(args.config, os.path.join(labdir, "lab.conf"))
+
+        # Scripts auxiliares SOLO si este laboratorio los necesita
+        copiados = []
+        if "pmkid" in cfg["features"]:
+            if copiar_auxiliar("compila_hostapd_pmkid.sh", labdir):
+                copiados.append("compila_hostapd_pmkid.sh")
+        if "sae" in cfg["features"]:
+            if copiar_auxiliar("sae_online.sh", labdir):
+                copiados.append("sae_online.sh")
+
+        print(f"[OK] Laboratorio '{labdir}/' creado "
+              f"({len(cfg['plan'])} escenarios, {cfg['total']} radios)")
+        print(f"     - {script_name}      (script de despliegue)")
+        print(f"     - lab.conf          (copia de la configuración)")
+        for c in copiados:
+            print(f"     - {c}")
+        if "pmkid" in cfg["features"] and "compila_hostapd_pmkid.sh" in copiados:
+            print(f"     Despliega:  cd {labdir} && sudo ./compila_hostapd_pmkid.sh && sudo ./{script_name}")
+        else:
+            print(f"     Despliega:  cd {labdir} && sudo ./{script_name}")
+        return
+
+    # ---- Modo fichero único: lab_generator.py CONFIG [-o SALIDA] ----
+    with open(script_name, "w", encoding="utf-8") as f:
+        f.write(script)
+    os.chmod(script_name, 0o755)
+    print(f"[OK] Generado {script_name}  ({len(cfg['plan'])} escenarios, {cfg['total']} radios)")
+    print(f"     Despliega en la VM:  sudo ./{os.path.basename(script_name)}")
 
 
 if __name__ == "__main__":

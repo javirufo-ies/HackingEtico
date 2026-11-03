@@ -47,18 +47,42 @@ produce un script de despliegue bash autónomo que levanta todos los escenarios
 cp lab.conf.example mi_lab.conf
 nano mi_lab.conf
 
-# 2. Generar el script de despliegue (en la máquina del profesor)
-./lab_generator.py mi_lab.conf -o despliegue.sh
+# 2. Generar el laboratorio en su propia carpeta (en la máquina del profesor)
+./lab_generator.py mi_lab.conf lab_junio
 
-# 3. Llevar a la VM y desplegar (como root)
+# 3. Llevar la carpeta a la VM y desplegar (como root)
+cd lab_junio
+sudo ./compila_hostapd_pmkid.sh    # solo si el lab usa pmkid/wps (una vez)
 sudo ./despliegue.sh
 ```
 
 Al terminar, el script imprime un cuadro con el **SSID, canal y BSSID real** de
 cada escenario. Las interfaces de ataque del alumno son `wlan0`, `wlan1`, …
 
-Para rehacer el laboratorio tras cambiar la configuración, vuelve a generar y a
-desplegar. Para apagarlo, usa tu `limpia.sh` (o reinicia la VM).
+### Laboratorios en carpetas propias
+
+Al indicar un **nombre de laboratorio** como segundo parámetro, el generador crea
+una carpeta con ese nombre y mete dentro todo lo necesario:
+
+```
+lab_junio/
+├── despliegue.sh              # script de despliegue
+├── lab.conf                   # copia de la configuración (para regenerarlo igual)
+├── compila_hostapd_pmkid.sh   # solo si el lab usa pmkid/wps
+└── sae_online.sh              # solo si el lab usa wpa3
+```
+
+Así puedes tener varios laboratorios (uno por carpeta) sin copiar ficheros a mano:
+
+```bash
+./lab_generator.py basico.conf   lab_clase1
+./lab_generator.py avanzado.conf lab_examen -f     # -f sobrescribe si ya existe
+```
+
+Cada carpeta es autónoma: se copia entera a la VM y se despliega desde dentro.
+
+Para rehacer un laboratorio tras cambiar su configuración, vuelve a generar (con
+`-f`) y a desplegar. Para apagarlo, usa tu `limpia.sh` (o reinicia la VM).
 
 ---
 
@@ -226,21 +250,28 @@ reproducible en clase, el alumno debe usar **ese mismo diccionario**.
 ## 10. Referencia de comandos del generador
 
 ```
-./lab_generator.py CONFIG [-o SALIDA] [--dict RUTA]
+./lab_generator.py CONFIG [NOMBRE] [-o SALIDA] [--dict RUTA] [-f]
 ```
 
 | Argumento | Descripción |
 |---|---|
 | `CONFIG` | Fichero de configuración del laboratorio (obligatorio). |
-| `-o`, `--output` | Script de salida (por defecto `despliegue.sh`). |
+| `NOMBRE` | Nombre del laboratorio: crea una carpeta con ese nombre y mete dentro todos los ficheros. Si se omite, genera un único script. |
+| `-o`, `--output` | Nombre del script de despliegue (por defecto `despliegue.sh`). |
 | `--dict RUTA` | Sobrescribe la directiva `dict` del fichero. |
+| `-f`, `--force` | Sobrescribe la carpeta del laboratorio si ya existe. |
 
 Ejemplos:
 
 ```bash
+# Modo carpeta (recomendado): cada lab en lo suyo
+./lab_generator.py mi_lab.conf lab_junio
+./lab_generator.py mi_lab.conf lab_junio -f            # sobrescribir
+./lab_generator.py mi_lab.conf lab_junio --dict /usr/share/wordlists/fasttrack.txt
+
+# Modo fichero único (sin nombre): solo el script
 ./lab_generator.py mi_lab.conf
 ./lab_generator.py mi_lab.conf -o lab_examen.sh
-./lab_generator.py mi_lab.conf --dict /usr/share/wordlists/fasttrack.txt
 ```
 
 El generador valida la configuración antes de escribir nada y, si algo no cuadra,
@@ -325,16 +356,16 @@ he_mixto_b        open        1   6
 ```
 
 ```bash
-# Profesor
-./lab_generator.py examen.conf -o examen.sh
+# Profesor: genera el laboratorio en su carpeta
+./lab_generator.py examen.conf lab_examen
 #   [info] canal 6 compartido por: he_mixto_a, he_mixto_b (filtrar por BSSID)
-#   [OK] Generado examen.sh (6 escenarios, 18 radios)
+#   [OK] Laboratorio 'lab_examen/' creado (6 escenarios, 18 radios)
+#        - despliegue.sh, lab.conf, compila_hostapd_pmkid.sh, sae_online.sh
 
-# VM (una vez, si hay pmkid/wps)
-sudo ./compila_hostapd_pmkid.sh
-
-# VM (cada despliegue)
-sudo ./examen.sh
+# Copiar la carpeta lab_examen/ a la VM, y dentro:
+cd lab_examen
+sudo ./compila_hostapd_pmkid.sh    # una vez (hay pmkid_nc y wps)
+sudo ./despliegue.sh               # cada despliegue
 ```
 
 El alumno recibe las interfaces `wlan0`…`wlan6`, localiza objetivos en ambas
