@@ -47,6 +47,49 @@ fi
 
 LAB_DIR="/opt/wifi-lab"
 
+# ------------------------------------------------------------------------------
+# DICCIONARIO de claves. Se indica como PRIMER parámetro del script:
+#     sudo ./despliegue.sh /ruta/mi_diccionario.txt
+# Si no se indica, se usa rockyou.txt. De aquí se eligen, AL AZAR y distintas en
+# cada despliegue, las claves de los escenarios WPA2 (he_wpa2, he_pmkid,
+# he_pmkid_nc) y WPA3 (he_wpa3_tm, he_wpa3, he_wpa3_dg). WPS mantiene su
+# clave/PIN aleatorios propios. Las claves WPA2 se guardan como PMK (hash); las
+# WPA3 van en claro porque SAE no admite PMK. La solución de cada despliegue se
+# consulta con hostapd_cli / wpa_cli (ver guía del profesor).
+# ------------------------------------------------------------------------------
+DICCIONARIO="${1:-/usr/share/wordlists/rockyou.txt}"
+
+if [ ! -r "$DICCIONARIO" ]; then
+  if [ -r "$DICCIONARIO.gz" ]; then
+    echo "[-] El diccionario $DICCIONARIO está comprimido."
+    echo "    Descomprímelo:  sudo gunzip $DICCIONARIO.gz"
+  else
+    echo "[-] No se puede leer el diccionario: $DICCIONARIO"
+    echo "    Indica otro:    sudo ./despliegue.sh /ruta/diccionario.txt"
+  fi
+  exit 1
+fi
+
+# Se filtra el diccionario UNA sola vez a un temporal: palabras válidas como
+# clave WPA2/WPA3 (8-63 caracteres, ASCII imprimible, sin comillas ni barra
+# invertida, que romperían los .conf). Así cada elección posterior es un shuf
+# rápido en vez de recorrer rockyou entero cada vez.
+DICC_FILTRADO="$(mktemp)"
+LC_ALL=C grep -aE '^[ -~]{8,63}$' "$DICCIONARIO" | LC_ALL=C grep -av '["\\]' > "$DICC_FILTRADO" || true
+if [ ! -s "$DICC_FILTRADO" ]; then
+  echo "[-] El diccionario $DICCIONARIO no tiene palabras válidas (8-63 ASCII)."
+  rm -f "$DICC_FILTRADO"
+  exit 1
+fi
+echo "[+] Diccionario: $DICCIONARIO ($(wc -l < "$DICC_FILTRADO") claves candidatas)"
+
+# Una palabra aleatoria válida del diccionario filtrado.
+palabra_aleatoria() { shuf -n1 "$DICC_FILTRADO"; }
+
+# PMK (64 hex) de una passphrase para un SSID: wpa_psk sin passphrase en claro.
+calcula_pmk() { wpa_passphrase "$1" "$2" | sed -n 's/^\tpsk=//p'; }
+
+
 echo "[+] 1. Limpiando entorno previo..."
 pkill -9 -f LAB_WPS_WATCHDOG 2>/dev/null || true
 pkill -9 -f LAB_WPA3_LOOP 2>/dev/null || true
@@ -174,7 +217,9 @@ EOF
 #   Clave almacenada como PMK (wpa_psk, 64 hex = PBKDF2(passphrase, SSID)).
 #   La passphrase en claro NO aparece en el script (anti-cheat con root).
 # ------------------------------------------------------------------------------
-cat << 'EOF' > "$LAB_DIR/wpa2/hostapd.conf"
+CLAVE_WPA2="$(palabra_aleatoria)"
+PSK_WPA2="$(calcula_pmk he_wpa2 "$CLAVE_WPA2")"
+cat << EOF > "$LAB_DIR/wpa2/hostapd.conf"
 interface=wlan_ap_wpa2
 driver=nl80211
 ssid=he_wpa2
@@ -183,15 +228,15 @@ channel=6
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=3e9ef0d8989c7a272eb6ff5a711136aba70f47821c5690017335f9f1d1ecf262
+wpa_psk=$PSK_WPA2
 EOF
 
-cat << 'EOF' > "$LAB_DIR/wpa2/wpa.conf"
+cat << EOF > "$LAB_DIR/wpa2/wpa.conf"
 ctrl_interface=/var/run/wpa_supplicant_wpa2
 p2p_disabled=1
 network={
     ssid="he_wpa2"
-    psk=3e9ef0d8989c7a272eb6ff5a711136aba70f47821c5690017335f9f1d1ecf262
+    psk=$PSK_WPA2
 }
 EOF
 
@@ -201,7 +246,9 @@ EOF
 #   alumno puede capturar el PMKID en la asociación o, tras un deauth, el
 #   handshake 4-way. El comportamiento por radio es idéntico al de passphrase.
 # ------------------------------------------------------------------------------
-cat << 'EOF' > "$LAB_DIR/pmkid/hostapd.conf"
+CLAVE_PMKID="$(palabra_aleatoria)"
+PSK_PMKID="$(calcula_pmk he_pmkid "$CLAVE_PMKID")"
+cat << EOF > "$LAB_DIR/pmkid/hostapd.conf"
 interface=wlan_ap_pmkid
 driver=nl80211
 ssid=he_pmkid
@@ -210,16 +257,16 @@ channel=11
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=414ff00c403e17f5d6a1e8baa5fbb78eec5053795aa027d5763fc5a26afce996
+wpa_psk=$PSK_PMKID
 okc=1
 EOF
 
-cat << 'EOF' > "$LAB_DIR/pmkid/wpa.conf"
+cat << EOF > "$LAB_DIR/pmkid/wpa.conf"
 ctrl_interface=/var/run/wpa_supplicant_pmkid
 p2p_disabled=1
 network={
     ssid="he_pmkid"
-    psk=414ff00c403e17f5d6a1e8baa5fbb78eec5053795aa027d5763fc5a26afce996
+    psk=$PSK_PMKID
 }
 EOF
 
@@ -231,7 +278,9 @@ EOF
 #   (HMAC-SHA1-128(PMK, "PMK Name" | MAC_AP | MAC_STA)), así que no depende
 #   de que otro cliente se haya conectado antes.
 # ------------------------------------------------------------------------------
-cat << 'EOF' > "$LAB_DIR/pmkid_nc/hostapd.conf"
+CLAVE_PMKIDNC="$(palabra_aleatoria)"
+PSK_PMKIDNC="$(calcula_pmk he_pmkid_nc "$CLAVE_PMKIDNC")"
+cat << EOF > "$LAB_DIR/pmkid_nc/hostapd.conf"
 interface=wlan_ap_pmk_nc
 driver=nl80211
 ssid=he_pmkid_nc
@@ -240,16 +289,16 @@ channel=4
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-wpa_psk=b25e910e95c0b150e515f1057caeb6cba4437c813d80947cd9ee84dd0899e745
+wpa_psk=$PSK_PMKIDNC
 okc=1
 EOF
 
-cat << 'EOF' > "$LAB_DIR/pmkid_nc/wpa.conf"
+cat << EOF > "$LAB_DIR/pmkid_nc/wpa.conf"
 ctrl_interface=/var/run/wpa_supplicant_pmkid_nc
 p2p_disabled=1
 network={
     ssid="he_pmkid_nc"
-    psk=b25e910e95c0b150e515f1057caeb6cba4437c813d80947cd9ee84dd0899e745
+    psk=$PSK_PMKIDNC
 }
 EOF
 
@@ -290,12 +339,15 @@ EOF
 
 # Fase 1: cualquier identidad externa usa PEAP. Fase 2 (dentro del túnel):
 # usuario y contraseña MSCHAPv2 ([2] = solo válido en fase 2).
-cat << 'EOF' > "$LAB_DIR/enterprise/eap_user.conf"
+# La IDENTIDAD es fija (viaja en claro: el alumno la OBSERVA). La CONTRASEÑA
+# sale del diccionario: es lo que el alumno CRACKEA del reto/respuesta MSCHAPv2.
+CLAVE_ENT="$(palabra_aleatoria)"
+cat << EOF > "$LAB_DIR/enterprise/eap_user.conf"
 *                          PEAP
-"alumno@iesvjp.es"  MSCHAPV2  "computer"  [2]
+"alumno@iesvjp.es"  MSCHAPV2  "$CLAVE_ENT"  [2]
 EOF
 
-cat << 'EOF' > "$LAB_DIR/enterprise/wpa.conf"
+cat << EOF > "$LAB_DIR/enterprise/wpa.conf"
 ctrl_interface=/var/run/wpa_supplicant_ent
 p2p_disabled=1
 network={
@@ -303,7 +355,7 @@ network={
     key_mgmt=WPA-EAP
     eap=PEAP
     identity="alumno@iesvjp.es"
-    password="computer"
+    password="$CLAVE_ENT"
     phase2="auth=MSCHAPV2"
 }
 EOF
@@ -311,7 +363,13 @@ EOF
 # ------------------------------------------------------------------------------
 # ESCENARIO 5: WEP (clave de 104 bits en hex, 13 caracteres ASCII)
 # ------------------------------------------------------------------------------
-cat << 'EOF' > "$LAB_DIR/wep/hostapd.conf"
+# WEP-104: clave de EXACTAMENTE 13 caracteres ASCII, aleatoria en cada
+# despliegue. NO sale del diccionario: el ataque WEP (PTW sobre los IVs) es
+# estadístico y no depende de la robustez de la clave, y hostapd exige 13
+# caracteres (26 hex) justos. Se genera y se pasa a hex para wep_key0.
+WEP_ASCII="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 13)"
+WEP_HEX="$(printf '%s' "$WEP_ASCII" | od -An -tx1 | tr -d ' \n')"
+cat << EOF > "$LAB_DIR/wep/hostapd.conf"
 interface=wlan_ap_wep
 driver=nl80211
 ssid=he_wep
@@ -319,16 +377,16 @@ hw_mode=g
 channel=9
 auth_algs=1
 wep_default_key=0
-wep_key0=696c6f76656d7966616d696c79
+wep_key0=$WEP_HEX
 EOF
 
-cat << 'EOF' > "$LAB_DIR/wep/wpa.conf"
+cat << EOF > "$LAB_DIR/wep/wpa.conf"
 ctrl_interface=/var/run/wpa_supplicant_wep
 p2p_disabled=1
 network={
     ssid="he_wep"
     key_mgmt=NONE
-    wep_key0=696c6f76656d7966616d696c79
+    wep_key0=$WEP_HEX
     wep_tx_keyidx=0
     auth_alg=OPEN
 }
@@ -404,7 +462,8 @@ EOF
 #   - Cliente WPA2 "antiguo" (sin PMF): deauth + handshake + diccionario.
 #   SAE necesita la passphrase en claro (no admite PMK hex): no hay anti-cheat.
 # ------------------------------------------------------------------------------
-cat << 'EOF' > "$LAB_DIR/wpa3_tm/hostapd.conf"
+CLAVE_TM="$(palabra_aleatoria)"
+cat << EOF > "$LAB_DIR/wpa3_tm/hostapd.conf"
 interface=wlan_ap_tm
 driver=nl80211
 ssid=he_wpa3_tm
@@ -413,29 +472,29 @@ channel=2
 wpa=2
 wpa_key_mgmt=WPA-PSK SAE
 rsn_pairwise=CCMP
-wpa_passphrase=princess
+wpa_passphrase=$CLAVE_TM
 ieee80211w=1
 sae_require_mfp=1
 EOF
 
-cat << 'EOF' > "$LAB_DIR/wpa3_tm/wpa3.conf"
+cat << EOF > "$LAB_DIR/wpa3_tm/wpa3.conf"
 ctrl_interface=/var/run/wpa_supplicant_tm3
 p2p_disabled=1
 network={
     ssid="he_wpa3_tm"
     key_mgmt=SAE
-    psk="princess"
+    psk="$CLAVE_TM"
     ieee80211w=2
 }
 EOF
 
-cat << 'EOF' > "$LAB_DIR/wpa3_tm/wpa2.conf"
+cat << EOF > "$LAB_DIR/wpa3_tm/wpa2.conf"
 ctrl_interface=/var/run/wpa_supplicant_tm2
 p2p_disabled=1
 network={
     ssid="he_wpa3_tm"
     key_mgmt=WPA-PSK
-    psk="princess"
+    psk="$CLAVE_TM"
     ieee80211w=0
 }
 EOF
@@ -447,7 +506,8 @@ EOF
 #   El cliente se reasocia cada 30 s para que se vea el intercambio SAE en una
 #   captura pasiva (el deauth no funciona: PMF).
 # ------------------------------------------------------------------------------
-cat << 'EOF' > "$LAB_DIR/wpa3/hostapd.conf"
+CLAVE_WPA3="$(palabra_aleatoria)"
+cat << EOF > "$LAB_DIR/wpa3/hostapd.conf"
 interface=wlan_ap_wpa3
 driver=nl80211
 ssid=he_wpa3
@@ -456,17 +516,17 @@ channel=5
 wpa=2
 wpa_key_mgmt=SAE
 rsn_pairwise=CCMP
-sae_password=iloveyou
+sae_password=$CLAVE_WPA3
 ieee80211w=2
 EOF
 
-cat << 'EOF' > "$LAB_DIR/wpa3/wpa.conf"
+cat << EOF > "$LAB_DIR/wpa3/wpa.conf"
 ctrl_interface=/var/run/wpa_supplicant_wpa3
 p2p_disabled=1
 network={
     ssid="he_wpa3"
     key_mgmt=SAE
-    sae_password="iloveyou"
+    sae_password="$CLAVE_WPA3"
     ieee80211w=2
 }
 EOF
@@ -483,7 +543,8 @@ EOF
 # ------------------------------------------------------------------------------
 DG_TRANSITION_DISABLE="${DG_TRANSITION_DISABLE:-0}"
 
-cat << 'EOF' > "$LAB_DIR/wpa3_dg/hostapd.conf"
+CLAVE_DG="$(palabra_aleatoria)"
+cat << EOF > "$LAB_DIR/wpa3_dg/hostapd.conf"
 interface=wlan_ap_dg
 driver=nl80211
 ctrl_interface=/var/run/hostapd_dg
@@ -493,20 +554,20 @@ channel=10
 wpa=2
 wpa_key_mgmt=SAE
 rsn_pairwise=CCMP
-sae_password=babygirl
+sae_password=$CLAVE_DG
 ieee80211w=2
 EOF
 if [ "$DG_TRANSITION_DISABLE" = "1" ]; then
   echo "transition_disable=0x01" >> "$LAB_DIR/wpa3_dg/hostapd.conf"
 fi
 
-cat << 'EOF' > "$LAB_DIR/wpa3_dg/wpa.conf"
+cat << EOF > "$LAB_DIR/wpa3_dg/wpa.conf"
 ctrl_interface=/var/run/wpa_supplicant_dg
 p2p_disabled=1
 network={
     ssid="he_wpa3_dg"
     key_mgmt=SAE WPA-PSK
-    psk="babygirl"
+    psk="$CLAVE_DG"
     ieee80211w=1
 }
 EOF
@@ -652,11 +713,15 @@ ip netns exec ns_ap_open sh -c "while true; do echo -e 'HTTP/1.1 200 OK\r\nConte
 echo "[+] 8. Conectando Clientes y activando generación continua de tráfico..."
 
 # CLIENTE OPEN
+# La contraseña del POST sale del diccionario (aleatoria en cada despliegue): el
+# alumno la LEE en claro de la captura HTTP, no la crackea. El usuario queda fijo
+# (admin) por realismo del formulario.
 mkdir -p /var/run/wpa_supplicant_open
 ip netns exec ns_cli_open wpa_supplicant -B -Dnl80211 -i wlan_cli_open -c "$LAB_DIR/open/wpa.conf"
 sleep 2
 ip netns exec ns_cli_open ip addr add 192.168.1.2/24 dev wlan_cli_open
-ip netns exec ns_cli_open sh -c "while true; do curl -s -m 1 -X POST -d 'user=admin&pass=SecretPass2026' http://192.168.1.1/login.php > /dev/null 2>&1 || true; sleep 1; done" &
+CLAVE_OPEN="$(palabra_aleatoria)"
+ip netns exec ns_cli_open sh -c "while true; do curl -s -m 1 -X POST -d 'user=admin&pass=$CLAVE_OPEN' http://192.168.1.1/login.php > /dev/null 2>&1 || true; sleep 1; done" &
 
 # CLIENTES WPA2
 mkdir -p /var/run/wpa_supplicant_wpa2
@@ -843,6 +908,9 @@ if [ "$DG_TRANSITION_DISABLE" = "1" ]; then
 fi
 
 sleep 1
+
+# ------------------------------------------------------------------------------
+rm -f "$DICC_FILTRADO" 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
 # Resumen de BSSID REALES (se leen del sistema; evita adivinar la MAC del AP)
