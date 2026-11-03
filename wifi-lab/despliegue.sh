@@ -24,7 +24,7 @@ fi
 # Paquetes necesarios: hostapd (APs), hcxtools (captura/conversion PMKID) y
 # OpenCL en CPU (pocl + ocl-icd) para hashcat. Solo se instalan los que falten.
 # ------------------------------------------------------------------------------
-PAQUETES=(hostapd hcxtools pocl-opencl-icd ocl-icd-libopencl1 hostapd-wpe openssl)
+PAQUETES=(hostapd wpasupplicant hcxtools pocl-opencl-icd ocl-icd-libopencl1 hostapd-wpe openssl)
 FALTAN=()
 for pkg in "${PAQUETES[@]}"; do
   if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
@@ -87,6 +87,14 @@ echo "[+] Diccionario: $DICCIONARIO ($(wc -l < "$DICC_FILTRADO") claves candidat
 palabra_aleatoria() { shuf -n1 "$DICC_FILTRADO"; }
 
 # PMK (64 hex) de una passphrase para un SSID: wpa_psk sin passphrase en claro.
+# wpa_passphrase viene en el paquete wpasupplicant (ya en la lista de PAQUETES);
+# se comprueba el binario por si acaso, porque calcula_pmk se usa enseguida.
+if ! command -v wpa_passphrase >/dev/null 2>&1; then
+  echo "[-] ERROR: falta 'wpa_passphrase' (paquete wpasupplicant)."
+  echo "    Instálalo:  sudo apt-get install -y wpasupplicant"
+  rm -f "$DICC_FILTRADO"
+  exit 1
+fi
 calcula_pmk() { wpa_passphrase "$1" "$2" | sed -n 's/^\tpsk=//p'; }
 
 

@@ -16,10 +16,12 @@
 ## 0. Puesta en marcha
 
 ```bash
-sudo ./despliegue.sh
+sudo ./despliegue.sh                       # claves de rockyou.txt
+sudo ./despliegue.sh /ruta/diccionario.txt # claves de otro diccionario
 ```
 
-El script instala lo que falte (`hostapd`, `hcxtools`, `pocl-opencl-icd`,
+El diccionario se pasa como primer parámetro (opcional; por defecto rockyou). El
+script instala lo que falte (`hostapd`, `hcxtools`, `pocl-opencl-icd`,
 `ocl-icd-libopencl1`), levanta los 10 escenarios y, al terminar, imprime el
 **SSID, canal y BSSID real** de cada uno (las claves no se muestran). Los BSSID
 cambian en cada despliegue. Las interfaces de trabajo del alumno son
@@ -58,28 +60,85 @@ sudo iw dev wlan0 set channel 11
 
 ## Soluciones
 
+> **Las claves CAMBIAN en cada despliegue. Esta guía NO contiene las soluciones.**
+> Las claves WPA2 (`he_wpa2`, `he_pmkid`, `he_pmkid_nc`), las WPA3 (`he_wpa3_tm`,
+> `he_wpa3`, `he_wpa3_dg`), la contraseña del usuario de Enterprise y la del POST
+> de `he_open` se eligen **al azar de un diccionario** (`rockyou.txt` por defecto;
+> cambiable con `sudo ./despliegue.sh /ruta/dicc.txt`). La clave de `he_wep` son
+> 13 caracteres aleatorios y el PIN/clave de `he_wps` también son aleatorios. Para
+> saber la solución del despliegue actual, consúltala (ver "Consultar las claves
+> del despliegue actual", justo debajo de esta tabla). Lo que SÍ es fijo: el
+> usuario del POST (`admin`), la identidad de Enterprise (`alumno@iesvjp.es`) y el
+> certificado del RADIUS (`radius.domain.lab`), porque no se crackean: se observan
+> en claro.
+
+
 | SSID            | Ch | Seguridad   | Objetivo didáctico                         | Solución |
 |-----------------|----|-------------|--------------------------------------------|----------|
-| `he_open`       | 1  | Abierta     | Sniffing de tráfico en claro (HTTP POST)   | `user=admin&pass=SecretPass2026` |
-| `he_wep`        | 9  | WEP-104     | Recolección de IVs + reinyección ARP       | `ilovemyfamily` (hex `69:6C:6F:76:65:6D:79:66:61:6D:69:6C:79`) |
-| `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | `sunshine` |
-| `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | `butterfly` |
-| `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | `football` |
-| `he_enterprise` | 3  | WPA2-EAP    | Análisis pasivo de EAP-PEAP                | Identidad `alumno@iesvjp.es` · tipo EAP 25 (PEAP) · cert. `radius.domain.lab` |
+| `he_open`       | 1  | Abierta     | Sniffing de tráfico en claro (HTTP POST)   | `user=admin&pass=<aleatoria del dicc.>` (se LEE en claro) |
+| `he_wep`        | 9  | WEP-104     | Recolección de IVs + reinyección ARP       | 13 caracteres ASCII **aleatorios** (el ataque no depende de la clave) |
+| `he_wpa2`       | 6  | WPA2-PSK    | Captura del handshake 4-way + crackeo      | clave **del diccionario** (crackear) |
+| `he_pmkid`      | 11 | WPA2-PSK    | PMKID **con** clientes asociados           | clave **del diccionario** (crackear) |
+| `he_pmkid_nc`   | 4  | WPA2-PSK    | PMKID **sin** clientes (*clientless*)      | clave **del diccionario** (crackear) |
+| `he_enterprise` | 3  | WPA2-EAP    | EAP-PEAP pasivo + Evil Twin (MSCHAPv2)      | Identidad fija `alumno@iesvjp.es`; **contraseña del diccionario** (crackear) |
 | `he_wps`        | 7  | WPA2-PSK + WPS | Fuerza bruta online del PIN WPS         | PIN y clave **aleatorios en cada despliegue** (ver sección 7) |
-| `he_wpa3_tm`    | 2  | WPA2/WPA3 mixto | Atacar la parte WPA2 de una red en transición | `princess` (por la vía WPA2) |
-| `he_wpa3`       | 5  | WPA3-SAE puro  | Diccionario **online** contra SAE          | `iloveyou` (solo online) |
-| `he_wpa3_dg`    | 10 | WPA3-SAE puro  | Downgrade a WPA2 con AP gemelo (Dragonblood) | `babygirl` (por el M2 robado) |
+| `he_wpa3_tm`    | 2  | WPA2/WPA3 mixto | Atacar la parte WPA2 de una red en transición | clave **del diccionario** (crackear por WPA2) |
+| `he_wpa3`       | 5  | WPA3-SAE puro  | Diccionario **online** contra SAE          | clave **del diccionario** (solo online) |
+| `he_wpa3_dg`    | 10 | WPA3-SAE puro  | Downgrade a WPA2 con AP gemelo (Dragonblood) | clave **del diccionario** (M2 robado) |
 
-Las claves de los tres escenarios WPA3 (`princess`, `iloveyou`, `babygirl`)
-están en `rockyou.txt`, a propósito: la lección de WPA3 es que sin una clave
-débil estos ataques no llegan a ninguna parte. SAE **no admite** la PMK en hex
-(`sae_password` necesita la passphrase en claro), así que aquí no hay anti-cheat
-por diseño del protocolo: las claves están en `despliegue.sh`.
+**Nota sobre WPA3 y anti-cheat.** Las claves WPA2 se guardan como PMK (hash) en
+los `.conf`, pero SAE **no admite** PMK: las claves WPA3 van en claro en el
+`hostapd.conf` mientras el AP corre. Como se borran del disco al desplegar (paso
+9) y además son aleatorias, el alumno no las tiene a mano, pero un alumno con root
+podría leerlas de la memoria del proceso; es el mismo límite que ya se asume en el
+resto del laboratorio.
 
-Las tres claves WPA2 de `he_wpa2`, `he_pmkid` y `he_pmkid_nc` y la contraseña
-del usuario Enterprise (`computer`) están en `rockyou.txt`. La clave de
-`he_wps` **no** está en ningún diccionario, a propósito.
+Las claves WPA2 (`he_wpa2`, `he_pmkid`, `he_pmkid_nc`), la contraseña del
+usuario Enterprise y la contraseña del POST de `he_open` salen del **diccionario**
+(aleatorias en cada despliegue; por defecto rockyou). La clave de `he_wep` son 13
+caracteres aleatorios (no del diccionario: el ataque WEP es estadístico). La
+clave de `he_wps` **no** está en ningún diccionario, a propósito. La identidad de
+Enterprise (`alumno@iesvjp.es`) y el usuario del POST (`admin`) sí son fijos:
+viajan en claro y el alumno los OBSERVA, no los crackea.
+
+---
+
+### Consultar las claves del despliegue actual
+
+Como las claves WPA2/WPA3 salen del diccionario al azar, la solución de cada
+despliegue se lee del AP en marcha (requiere root; es el mismo acceso que tiene
+el alumno, así que no debilita el anti-cheat):
+
+```bash
+# WPA3 (passphrase en claro en get_config)
+for e in "ns_ap_tm:wlan_ap_tm:/var/run/hostapd_tm" \
+         "ns_ap_wpa3:wlan_ap_wpa3:/var/run/hostapd_wpa3" \
+         "ns_ap_dg:wlan_ap_dg:/var/run/hostapd_dg"; do
+  IFS=: read -r ns ifz ctl <<< "$e"
+  echo -n "$ifz: "
+  sudo ip netns exec "$ns" hostapd_cli -p "$ctl" -i "$ifz" get_config 2>/dev/null \
+    | grep -iE 'ssid|passphrase|sae' | paste -sd' '
+done
+```
+
+Los escenarios WPA3 no definen `ctrl_interface` en su `hostapd.conf` salvo
+`he_wpa3_dg` (`/var/run/hostapd_dg`). Para `he_wpa3_tm` y `he_wpa3` la vía
+fiable es leerla del cliente del propio laboratorio, que sí la tiene en claro en
+su perfil en memoria:
+
+```bash
+sudo ip netns exec ns_cli3_tm wpa_cli -p /var/run/wpa_supplicant_tm3 -i wlan_cli3_tm list_networks
+sudo ip netns exec ns_cli_wpa3 wpa_cli -p /var/run/wpa_supplicant_wpa3 -i wlan_cli_wpa3 status | grep -i ssid
+```
+
+**La vía más cómoda (WPA2 y WPA3): crackear, que es lo que hará el alumno.** Como
+las claves vienen del diccionario, el propio ataque del escenario las recupera.
+Para WPA2 basta `aircrack-ng`/`hashcat` con el mismo diccionario del despliegue.
+
+> Si prefieres una lista directa de soluciones para preparar la clase, lo más
+> práctico es modificar `despliegue.sh` para que, además de desplegar, escriba un
+> `/root/solucion.txt` (modo 600) con cada SSID y su clave. No viene de serie
+> para no dejar las soluciones en claro en disco; actívalo bajo tu criterio.
 
 ---
 
@@ -95,7 +154,9 @@ sudo airodump-ng -c 1 --bssid <BSSID_OPEN> -w cap_open wlan0
 tshark -r cap_open-01.cap -Y 'http.request.method == "POST"' -T fields -e http.file_data
 ```
 
-**Resultado esperado:** `user=admin&pass=SecretPass2026`.
+**Resultado esperado:** `user=admin&pass=<contraseña del despliegue>`. La
+contraseña cambia en cada despliegue (sale del diccionario); lo que importa es
+que viaja en claro y el alumno la lee tal cual.
 
 **Aprendizaje:** cualquiera en la misma red abierta ve las credenciales.
 
@@ -142,7 +203,7 @@ aircrack-ng -b $BSSID cap_wep-*.cap
 #    Si PTW no lo consigue: aircrack-ng -K -n 128 -b $BSSID cap_wep-*.cap
 ```
 
-**Resultado esperado:** `KEY FOUND! [ 69:6C:6F:76:65:6D:79:66:61:6D:69:6C:79 ] (ASCII: ilovemyfamily)`
+**Resultado esperado:** `KEY FOUND! [ ... ] (ASCII: <13 caracteres del despliegue>)`
 (con WEP-104, normalmente entre 20.000 y 80.000 IVs).
 
 ### Fundamento técnico
@@ -296,7 +357,10 @@ hcxpcapngtool -o hash_wpa2.22000 cap_wpa2-01.cap
 hashcat -m 22000 hash_wpa2.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-**Resultado esperado:** `sunshine`.
+**Resultado esperado:** la clave que se eligió del diccionario en este
+despliegue (distinta cada vez). Si usas el mismo diccionario del despliegue en
+aircrack/hashcat, aparece; para verla sin crackear, mira "Consultar las claves
+del despliegue actual".
 
 ### Fundamento técnico
 
@@ -336,7 +400,7 @@ KCK = primeros 128 bits de la PTK      (clave para el MIC)
 - **Contraste con WEP:** aquí no hay debilidad criptográfica, solo fuerza
   bruta. PBKDF2 con 4096 iteraciones hace cada intento caro. Con una
   contraseña larga y aleatoria el ataque es inviable; solo caen las
-  contraseñas débiles o de diccionario (`sunshine` está en `rockyou.txt`).
+  contraseñas débiles o de diccionario (la clave del escenario sale de ahí).
 - **El SSID actúa como sal:** las tablas precalculadas solo sirven para un
   SSID concreto. Por eso los SSID por defecto o muy comunes son más
   vulnerables.
@@ -435,7 +499,8 @@ hcxhashtool -i solo_pmkid.22000 --type=1 -o solo_pmkid_01.22000   # solo PMKID
 hcxhashtool -i solo_pmkid.22000 --type=2 -o solo_pmkid_02.22000   # solo handshake
 ```
 
-**Resultado esperado:** `butterfly`.
+**Resultado esperado:** la clave del diccionario de este despliegue (crackéala
+con el mismo diccionario).
 
 **Problema frecuente: hashcat termina sin probar nada** y muestra
 `Not enough allocatable device memory or free host memory for mapping`. La VM
@@ -490,7 +555,8 @@ el encabezado indica qué material tiene, por ejemplo
 `1 handshake, with PMKID`. Si solo quieres convertirlo al formato de hashcat,
 sirve el mismo `hcxpcapngtool -o hash.22000 cap_pmkid-01.cap` de la sección 3.
 
-**Resultado esperado:** `butterfly`.
+**Resultado esperado:** la clave del diccionario de este despliegue (crackéala
+con el mismo diccionario).
 
 **Diferencia con hcxtools.** hcxdumptool consigue el PMKID **activamente**:
 se asocia él mismo con una MAC inventada y le basta el M1 del AP (por eso en
@@ -613,7 +679,8 @@ El `grep` es necesario: la captura también contiene el M2 que ha enviado
 `wpa_supplicant`, calculado con la contraseña falsa. hcxpcapngtool lo saca como
 `WPA*02`, y esa línea no tiene sentido crackearla.
 
-**Resultado esperado (ambos métodos):** `football`.
+**Resultado esperado (ambos métodos):** la clave del diccionario de este
+despliegue (crackéala con el mismo diccionario).
 
 ### Por qué hubo que recompilar hostapd para el método A
 
@@ -848,7 +915,9 @@ hashcat -m 5500 ent.hash /usr/share/wordlists/rockyou.txt
 ```
 
 **Resultado esperado:** la contraseña de `alumno@iesvjp.es` en
-`he_enterprise` es `computer`, que está en `rockyou.txt`.
+`he_enterprise` es la que se eligió del diccionario en este despliegue
+(consúltala como se indica en "Consultar las claves del despliegue actual"; la vía
+más directa es crackearla con el mismo diccionario, que es el propio ejercicio).
 
 **Recuperar el hash NT aunque la clave no esté en diccionario.** La respuesta
 MSCHAPv2 se puede reducir a un solo DES (2^56) y obtener el hash NT con
@@ -1327,8 +1396,8 @@ sudo aireplay-ng -0 3 -a $BSSID -c $CLIENT_WPA2 wlan0mon
 aircrack-ng -w /usr/share/wordlists/rockyou.txt -b $BSSID cap_tm-01.cap
 ```
 
-**Resultado esperado:** `princess`. Y esa clave sirve también para entrar por
-WPA3, porque es la misma.
+**Resultado esperado:** la clave del diccionario de este despliegue. Y esa clave
+sirve también para entrar por WPA3, porque es la misma.
 
 ### b) El contraste: el mismo deauth contra el cliente WPA3 **no hace nada**
 
@@ -1370,7 +1439,7 @@ sudo ip netns exec ns_cli3_tm wpa_cli -p /var/run/wpa_supplicant_tm3 -i wlan_cli
 
 AP solo SAE, PMF obligatoria (`ieee80211w=2`). No hay nada crackeable offline.
 El único ataque es probar contraseñas **haciendo un intercambio SAE real con el
-AP**, una por conexión. Contraseña débil a propósito (`iloveyou`).
+AP**, una por conexión. La contraseña sale del diccionario (débil a propósito).
 
 ### a) Primero, comprobar que lo de siempre NO funciona
 
@@ -1407,12 +1476,13 @@ El script prueba cada contraseña con un intercambio SAE completo y se detiene a
 encontrarla, midiendo la velocidad:
 
 ```
-[  12] Probando: iloveyou
-[✓] CONTRASEÑA ENCONTRADA: 'iloveyou'  (12 intentos en 7 s)
+[  12] Probando: <clave del despliegue>
+[✓] CONTRASEÑA ENCONTRADA: '<clave del despliegue>'  (12 intentos en 7 s)
     Velocidad: 1.71 intentos/s -> rockyou completo (14,3 M): 97 días
 ```
 
-**Resultado esperado:** `iloveyou`. Lo revelador es la **velocidad**: 1-3
+**Resultado esperado:** la clave del diccionario de este despliegue. Lo revelador
+es la **velocidad**: 1-3
 intentos/s. La extrapolación que imprime el script es la lección: rockyou
 entero tardaría **meses**, y una contraseña robusta, inviable. Compáralo con
 los ~pocos segundos del mismo diccionario offline en `he_wpa2`.
@@ -1508,9 +1578,9 @@ hcxpcapngtool -o dg.22000 cap_dg-01.cap
 hashcat -m 22000 dg.22000 /usr/share/wordlists/rockyou.txt
 ```
 
-**Resultado esperado:** `babygirl`. El cliente ha calculado el MIC del M2 con la
-PMK de WPA2 = `PBKDF2(babygirl, SSID)`, que **sí** es crackeable offline, aunque
-el AP real solo hablara WPA3.
+**Resultado esperado:** la clave del diccionario de este despliegue. El cliente ha
+calculado el MIC del M2 con la PMK de WPA2 = `PBKDF2(clave, SSID)`, que **sí** es
+crackeable offline, aunque el AP real solo hablara WPA3.
 
 ### c) La mitigación: Transition Disable
 
@@ -1566,21 +1636,25 @@ automatiza; la práctica guiada lo pone en manos del alumno.
 
 ## Mantenimiento: cambiar las claves
 
-- **WPA2:** las claves se guardan como PMK (64 hex) en `despliegue.sh`, en el
-  `hostapd.conf` y en el `wpa.conf` de cada escenario. La PMK depende del SSID,
-  así que se calcula para cada red:
+- **WPA2 y WPA3:** ya no hay claves fijas que mantener. `despliegue.sh` elige una
+  palabra al azar del diccionario para cada escenario en cada despliegue
+  (función `palabra_aleatoria`), calcula la PMK al vuelo para los WPA2
+  (`calcula_pmk`, que es `wpa_passphrase`) y usa la passphrase en claro para los
+  WPA3 (SAE no admite PMK). Para cambiar el **repertorio** de claves, cambia el
+  diccionario:
 
   ```bash
-  ./calculaPMK.py he_wpa2 <nueva_clave>
+  sudo ./despliegue.sh /ruta/mi_diccionario.txt
   ```
 
-  Usa palabras de `rockyou.txt` de 8 a 63 caracteres.
+  El script filtra el diccionario a palabras válidas como clave (8-63 caracteres,
+  ASCII imprimible, sin comillas ni barra invertida), así que puede ser cualquier
+  lista de palabras. Para que el crackeo en clase sea reproducible, el alumno debe
+  usar **ese mismo diccionario** en aircrack/hashcat.
 
-- **WEP:** `wep_key0` en hex. Solo admite 5 o 13 caracteres ASCII (10 o 26 hex):
-
-  ```bash
-  printf 'ilovemyfamily' | od -An -tx1 | tr -d ' \n'
-  ```
+- **WEP:** ya no hay clave fija. `despliegue.sh` genera 13 caracteres ASCII
+  aleatorios y los pasa a hex para `wep_key0` en cada despliegue (WEP-104). No se
+  toca el diccionario: el ataque WEP es estadístico y no depende de la clave.
 
 - **WPS:** no hay nada que cambiar: el PIN y la clave se generan en cada
   despliegue. La **duración** del ataque se ajusta en `despliegue.sh` con los
