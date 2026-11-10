@@ -52,9 +52,13 @@ nano mi_lab.conf
 
 # 3. Llevar la carpeta a la VM y desplegar (como root)
 cd lab_junio
-sudo ./compila_hostapd_pmkid.sh    # solo si el lab usa pmkid/wps (una vez)
 sudo ./despliegue.sh
 ```
+
+El despliegue se encarga de todo: si el laboratorio usa PMKID o WPS y falta el
+`hostapd` parcheado (o está pero sin soporte WPS), **lo compila él mismo**
+llamando a `compila_hostapd_pmkid.sh` de la carpeta. No hay que compilar nada a
+mano: basta con ejecutar `despliegue.sh`.
 
 Al terminar, el script imprime un cuadro con el **SSID, canal y BSSID real** de
 cada escenario. Las interfaces de ataque del alumno son `wlan0`, `wlan1`, …
@@ -204,8 +208,15 @@ sudo ./compila_hostapd_pmkid.sh            # compila e instala /usr/local/sbin/h
 sudo ./compila_hostapd_pmkid.sh --force    # recompila aunque ya exista
 ```
 
-El despliegue lo invoca solo si falta y hay escenarios que lo necesitan. El
-`hostapd` del sistema no se toca: el resto de escenarios lo siguen usando.
+**No hace falta ejecutarlo a mano.** Cuando generas el laboratorio en una carpeta,
+el generador copia `compila_hostapd_pmkid.sh` dentro si el lab lo necesita, y el
+`despliegue.sh` lo invoca automáticamente: lo compila si falta el binario, y lo
+recompila con `--force` si existe pero le falta el soporte WPS. El alumno solo
+ejecuta `despliegue.sh`. El `hostapd` del sistema no se toca: el resto de
+escenarios lo siguen usando.
+
+(El comando de arriba sigue estando disponible por si quieres compilarlo por
+separado, pero no es necesario.)
 
 ---
 
@@ -330,8 +341,8 @@ Avisos (no detienen la generación), por `stderr`:
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| `Falta hostapd-pmkid …` | No compilado | `sudo ./compila_hostapd_pmkid.sh` |
-| `hostapd-pmkid sin CONFIG_WPS=y` | Compilado sin WPS | Recompila con `--force` (el script ya añade `CONFIG_WPS=y`). |
+| `Falta hostapd-pmkid y compila_hostapd_pmkid.sh` | El compilador no está en la carpeta | Regenera el lab con el generador (lo copia), o copia el script a mano. |
+| `Tras recompilar, hostapd-pmkid sigue sin WPS` | Fallo al compilar con WPS | Revisa `/tmp/hostapd_pmkid_build.log` y `compila_hostapd_pmkid.sh`. |
 | `El hostapd del sistema no tiene soporte SAE` | hostapd antiguo | Actualiza `hostapd` (en Kali reciente viene con SAE). |
 | `No se puede leer el diccionario` | Ruta mala o comprimido | `sudo gunzip rockyou.txt.gz` o pasa otra ruta. |
 | Un AP de 5 GHz no aparece | Regulatorio / DFS | Comprueba `iw reg get`; en DFS espera ~1 min; valida con `wireless-regdb`. |
@@ -362,10 +373,9 @@ he_mixto_b        open        1   6
 #   [OK] Laboratorio 'lab_examen/' creado (6 escenarios, 18 radios)
 #        - despliegue.sh, lab.conf, compila_hostapd_pmkid.sh, sae_online.sh
 
-# Copiar la carpeta lab_examen/ a la VM, y dentro:
+# Copiar la carpeta lab_examen/ a la VM, y dentro, un único comando:
 cd lab_examen
-sudo ./compila_hostapd_pmkid.sh    # una vez (hay pmkid_nc y wps)
-sudo ./despliegue.sh               # cada despliegue
+sudo ./despliegue.sh    # compila el hostapd parcheado solo si hace falta
 ```
 
 El alumno recibe las interfaces `wlan0`…`wlan6`, localiza objetivos en ambas

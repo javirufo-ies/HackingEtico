@@ -898,12 +898,29 @@ def emitir(cfg, conf_path):
             fi'''))
     if "wps" in feats:
         a(textwrap.dedent('''\
-            WPS_PROBE="$(mktemp)"
-            printf 'interface=lab_wps_probe\\ndriver=nl80211\\nssid=probe\\nwps_state=2\\neap_server=1\\n' > "$WPS_PROBE"
-            if timeout 5 "$HOSTAPD_PMKID" "$WPS_PROBE" 2>&1 | grep -q "unknown configuration item 'wps_state'"; then
-              echo "[-] hostapd-pmkid sin CONFIG_WPS=y. Recompila con compila_hostapd_pmkid.sh --force"; rm -f "$WPS_PROBE"; exit 1
-            fi
-            rm -f "$WPS_PROBE"'''))
+            # El escenario WPS necesita que hostapd-pmkid tenga CONFIG_WPS=y. Si el
+            # binario existe pero se compiló sin WPS, se recompila SOLO (--force) para
+            # que el alumno no tenga que hacer nada a mano.
+            wps_soportado() {
+              local probe out
+              probe="$(mktemp)"
+              printf 'interface=lab_wps_probe\\ndriver=nl80211\\nssid=probe\\nwps_state=2\\neap_server=1\\n' > "$probe"
+              out="$(timeout 5 "$HOSTAPD_PMKID" "$probe" 2>&1 || true)"
+              rm -f "$probe"
+              ! echo "$out" | grep -q "unknown configuration item 'wps_state'"
+            }
+            if ! wps_soportado; then
+              echo "[!] hostapd-pmkid sin soporte WPS: recompilando automaticamente..."
+              SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+              if [ -x "$SCRIPT_DIR/compila_hostapd_pmkid.sh" ]; then
+                "$SCRIPT_DIR/compila_hostapd_pmkid.sh" --force
+              else
+                echo "[-] Falta compila_hostapd_pmkid.sh para recompilar con WPS."; exit 1
+              fi
+              if ! wps_soportado; then
+                echo "[-] Tras recompilar, hostapd-pmkid sigue sin WPS. Revisa compila_hostapd_pmkid.sh."; exit 1
+              fi
+            fi'''))
     if "sae" in feats:
         a(textwrap.dedent('''\
             SAE_PROBE="$(mktemp)"
