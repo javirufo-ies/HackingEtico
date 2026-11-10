@@ -320,7 +320,7 @@ auth_algs=1
 wpa=0
 EOF
 cat << EOF > "@D@/cli.conf"
-ctrl_interface=/var/run/wsup_@I@
+ctrl_interface=$RUN_DIR/wsup_@I@
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -346,7 +346,7 @@ wpa_psk=$PSK@I@
 @OKC@
 EOF
 cat << EOF > "@D@/cli.conf"
-ctrl_interface=/var/run/wsup_@I@
+ctrl_interface=$RUN_DIR/wsup_@I@
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -369,7 +369,7 @@ wep_default_key=0
 wep_key0=$WEP_HEX@I@
 EOF
 cat << EOF > "@D@/cli.conf"
-ctrl_interface=/var/run/wsup_@I@
+ctrl_interface=$RUN_DIR/wsup_@I@
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -413,7 +413,7 @@ cat << EOF > "@D@/eap_user.conf"
 "alumno@iesvjp.es"  MSCHAPV2  "$K@I@"  [2]
 EOF
 cat << EOF > "@D@/cli.conf"
-ctrl_interface=/var/run/wsup_@I@
+ctrl_interface=$RUN_DIR/wsup_@I@
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -434,7 +434,7 @@ WPS_PASS@I@="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16)"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
 driver=nl80211
-ctrl_interface=/var/run/hostapd_wps_@I@
+ctrl_interface=$RUN_DIR/hostapd_wps_@I@
 ssid=@SSID@
 @RADIO@
 wpa=2
@@ -455,7 +455,7 @@ device_type=6-0050F204-1
 os_version=01020300
 EOF
 cat << EOF > "@D@/cli.conf"
-ctrl_interface=/var/run/wsup_@I@
+ctrl_interface=$RUN_DIR/wsup_@I@
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -479,7 +479,7 @@ sae_password=$K@I@
 ieee80211w=2
 EOF
 cat << EOF > "@D@/cli.conf"
-ctrl_interface=/var/run/wsup_@I@
+ctrl_interface=$RUN_DIR/wsup_@I@
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -506,7 +506,7 @@ ieee80211w=1
 sae_require_mfp=1
 EOF
 cat << EOF > "@D@/cli_sae.conf"
-ctrl_interface=/var/run/wsup_@I@_0
+ctrl_interface=$RUN_DIR/wsup_@I@_0
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -516,7 +516,7 @@ network={
 }
 EOF
 cat << EOF > "@D@/cli_wpa2.conf"
-ctrl_interface=/var/run/wsup_@I@_1
+ctrl_interface=$RUN_DIR/wsup_@I@_1
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -533,7 +533,7 @@ K@I@="$(palabra_aleatoria)"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
 driver=nl80211
-ctrl_interface=/var/run/hostapd_dg_@I@
+ctrl_interface=$RUN_DIR/hostapd_dg_@I@
 ssid=@SSID@
 @RADIO@
 wpa=2
@@ -546,7 +546,7 @@ if [ "$DG_TRANSITION_DISABLE" = "1" ]; then
   echo "transition_disable=0x01" >> "@D@/hostapd.conf"
 fi
 cat << EOF > "@D@/cli.conf"
-ctrl_interface=/var/run/wsup_@I@_0
+ctrl_interface=$RUN_DIR/wsup_@I@_0
 p2p_disabled=1
 network={
     ssid="@SSID@"
@@ -578,7 +578,7 @@ def cli_block(p):
     if t == "open":
         for c in p["clientes"]:
             ip = f"192.168.{p['subred']}.{10 + c['j']}"
-            out.append(tpl('''mkdir -p /var/run/wsup_@I@
+            out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
 sleep 1
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
@@ -590,7 +590,7 @@ ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do curl -s -m 1 -X POST -d 
     if t in ("wpa2", "pmkid"):
         for c in p["clientes"]:
             ip = f"192.168.{p['subred']}.{10 + c['j']}"
-            out.append(tpl('''mkdir -p /var/run/wsup_@I@
+            out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
 sleep 1
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
@@ -602,7 +602,7 @@ ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
         for c in p["clientes"]:
             ip = f"192.168.{p['subred']}.{10 + c['j']}"
             dead = f"192.168.{p['subred']}.{200 + c['j']}"
-            out.append(tpl('''mkdir -p /var/run/wsup_@I@
+            out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
 sleep 1
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
@@ -613,15 +613,15 @@ ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do ip neigh flush all dev @
     if t == "pmkid_nc":
         e = p["efimero"]
         ip = f"192.168.{p['subred']}.10"
-        out.append(tpl('''mkdir -p /var/run/wsup_@I@
+        out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
 NC_OK=0
 for _ in $(seq 1 15); do
-  if ip netns exec @NS@ wpa_cli -p /var/run/wsup_@I@ -i @IF@ status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then NC_OK=1; break; fi
+  if ip netns exec @NS@ wpa_cli -p $RUN_DIR/wsup_@I@ -i @IF@ status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then NC_OK=1; break; fi
   sleep 1
 done
 [ "$NC_OK" -eq 1 ] && echo "  [OK] @SSID@: cliente efímero asoció (y se desconecta)" || echo "  [!] @SSID@: el cliente efímero no asoció"
-ip netns exec @NS@ wpa_cli -p /var/run/wsup_@I@ -i @IF@ terminate > /dev/null 2>&1 || true
+ip netns exec @NS@ wpa_cli -p $RUN_DIR/wsup_@I@ -i @IF@ terminate > /dev/null 2>&1 || true
 sleep 1
 ip netns exec @NS@ iw dev @IF@ disconnect 2>/dev/null || true
 ''', I=i, NS=e["ns"], IF=e["iface"], D=d, SSID=p["ssid"]))
@@ -630,24 +630,24 @@ ip netns exec @NS@ iw dev @IF@ disconnect 2>/dev/null || true
     if t == "enterprise":
         for c in p["clientes"]:
             ip = f"192.168.{p['subred']}.{10 + c['j']}"
-            out.append(tpl('''mkdir -p /var/run/wsup_@I@
+            out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
 ENT_OK=0
 for _ in $(seq 1 15); do
-  if ip netns exec @NS@ wpa_cli -p /var/run/wsup_@I@ -i @IF@ status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then ENT_OK=1; break; fi
+  if ip netns exec @NS@ wpa_cli -p $RUN_DIR/wsup_@I@ -i @IF@ status 2>/dev/null | grep -q '^wpa_state=COMPLETED'; then ENT_OK=1; break; fi
   sleep 1
 done
 [ "$ENT_OK" -eq 1 ] && echo "  [OK] @SSID@: cliente EAP autenticado" || echo "  [!] @SSID@: cliente EAP NO autenticado"
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
 ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do ping -i 1 @GW@ > /dev/null 2>&1; done" &
-ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do sleep 30; wpa_cli -p /var/run/wsup_@I@ -i @IF@ reassociate > /dev/null 2>&1; done" &
+ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do sleep 30; wpa_cli -p $RUN_DIR/wsup_@I@ -i @IF@ reassociate > /dev/null 2>&1; done" &
 ''', I=i, NS=c["ns"], IF=c["iface"], D=d, IP=ip, GW=gw, SSID=p["ssid"]))
         return "".join(out)
 
     if t == "wps":
         for c in p["clientes"]:
             ip = f"192.168.{p['subred']}.{10 + c['j']}"
-            out.append(tpl('''mkdir -p /var/run/wsup_@I@
+            out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
 sleep 1
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
@@ -656,7 +656,7 @@ ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
         # Watchdog anti-lockout (desbloquea el PIN cada segundo)
         out.append(tpl('''ip netns exec @NS@ sh -c "
   : LAB_WPS_WATCHDOG
-  CLI='$HOSTAPD_CLI -p /var/run/hostapd_wps_@I@ -i @AP@'
+  CLI='$HOSTAPD_CLI -p $RUN_DIR/hostapd_wps_@I@ -i @AP@'
   while true; do
     P=\\$(\\$CLI wps_ap_pin get 2>/dev/null)
     if echo \\"\\$P\\" | grep -qE '^[0-9]{8}\\$'; then \\$CLI wps_ap_pin set \\"\\$P\\" 0 > /dev/null 2>&1; fi
@@ -669,14 +669,14 @@ ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
     if t == "wpa3":
         for c in p["clientes"]:
             ip = f"192.168.{p['subred']}.{10 + c['j']}"
-            out.append(tpl('''mkdir -p /var/run/wsup_@I@
+            out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
-esperar_cliente @NS@ @IF@ /var/run/wsup_@I@ "@SSID@ (SAE)" @WAIT@
+esperar_cliente @NS@ @IF@ $RUN_DIR/wsup_@I@ "@SSID@ (SAE)" @WAIT@
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
 ''', I=i, NS=c["ns"], IF=c["iface"], D=d, IP=ip, SSID=p["ssid"], WAIT=wait))
             out.append(ping(c["ns"], c["iface"]))
             # reasociación para captura pasiva del SAE
-            out.append(tpl('''ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do sleep 30; wpa_cli -p /var/run/wsup_@I@ -i @IF@ reassociate > /dev/null 2>&1; done" &
+            out.append(tpl('''ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do sleep 30; wpa_cli -p $RUN_DIR/wsup_@I@ -i @IF@ reassociate > /dev/null 2>&1; done" &
 ''', NS=c["ns"], I=i, IF=c["iface"]))
         return "".join(out)
 
@@ -684,11 +684,11 @@ ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
         csae, cwpa2 = p["clientes"][0], p["clientes"][1]
         ipsae = f"192.168.{p['subred']}.10"
         ipw2 = f"192.168.{p['subred']}.20"
-        out.append(tpl('''mkdir -p /var/run/wsup_@I@_0 /var/run/wsup_@I@_1
+        out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@_0 $RUN_DIR/wsup_@I@_1
 ip netns exec @NSS@ wpa_supplicant -B -Dnl80211 -i @IFS@ -c "@D@/cli_sae.conf"
 ip netns exec @NSW@ wpa_supplicant -B -Dnl80211 -i @IFW@ -c "@D@/cli_wpa2.conf"
-esperar_cliente @NSS@ @IFS@ /var/run/wsup_@I@_0 "@SSID@ (WPA3/SAE)" @WAIT@
-esperar_cliente @NSW@ @IFW@ /var/run/wsup_@I@_1 "@SSID@ (WPA2 antiguo)" @WAIT@
+esperar_cliente @NSS@ @IFS@ $RUN_DIR/wsup_@I@_0 "@SSID@ (WPA3/SAE)" @WAIT@
+esperar_cliente @NSW@ @IFW@ $RUN_DIR/wsup_@I@_1 "@SSID@ (WPA2 antiguo)" @WAIT@
 ip netns exec @NSS@ ip addr add @IPS@/24 dev @IFS@
 ip netns exec @NSW@ ip addr add @IPW@/24 dev @IFW@
 ip netns exec @NSS@ sh -c ": LAB_TRAFFIC; while true; do ping -i 1 @GW@ > /dev/null 2>&1; done" &
@@ -701,12 +701,12 @@ ip netns exec @NSW@ sh -c ": LAB_TRAFFIC; while true; do ping -i 1 @GW@ > /dev/n
     if t == "wpa3_dg":
         c = p["clientes"][0]
         ip = f"192.168.{p['subred']}.10"
-        out.append(tpl('''mkdir -p /var/run/wsup_@I@_0
+        out.append(tpl('''mkdir -p $RUN_DIR/wsup_@I@_0
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
-esperar_cliente @NS@ @IF@ /var/run/wsup_@I@_0 "@SSID@ (SAE, perfil con WPA2)" @WAIT@
+esperar_cliente @NS@ @IF@ $RUN_DIR/wsup_@I@_0 "@SSID@ (SAE, perfil con WPA2)" @WAIT@
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
 ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do ping -i 1 @GW@ > /dev/null 2>&1; done" &
-ip netns exec @NS@ sh -c ": LAB_TRAFFIC; C='wpa_cli -p /var/run/wsup_@I@_0 -i @IF@'; while true; do sleep 30; \\$C select_network 0 > /dev/null 2>&1; sleep 1; \\$C reassociate > /dev/null 2>&1; done" &
+ip netns exec @NS@ sh -c ": LAB_TRAFFIC; C='wpa_cli -p $RUN_DIR/wsup_@I@_0 -i @IF@'; while true; do sleep 30; \\$C select_network 0 > /dev/null 2>&1; sleep 1; \\$C reassociate > /dev/null 2>&1; done" &
 ''', I=i, NS=c["ns"], IF=c["iface"], D=d, IP=ip, GW=gw, SSID=p["ssid"], WAIT=wait))
         return "".join(out)
 
@@ -760,7 +760,10 @@ def emitir(cfg, conf_path):
           fi
         fi'''))
     a("")
-    a('LAB_DIR="/opt/wifi-lab"')
+    a('# Todo el laboratorio vive dentro de su propia carpeta (la de este script):')
+    a('SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"')
+    a('LAB_DIR="$SCRIPT_DIR/runtime"      # configuraciones, certificados, etc.')
+    a('RUN_DIR="$LAB_DIR/run"             # sockets de control (hostapd/wpa_supplicant)')
     if "dg" in feats:
         a('DG_TRANSITION_DISABLE="${DG_TRANSITION_DISABLE:-0}"')
     a("")
@@ -822,7 +825,8 @@ def emitir(cfg, conf_path):
     a("pkill -9 -f LAB_WPS_WATCHDOG 2>/dev/null || true")
     a("pkill -9 -f LAB_TRAFFIC 2>/dev/null || true")
     a("for b in hostapd hostapd-wpe wpa_supplicant nc curl ping arping; do pkill -9 \"$b\" 2>/dev/null || true; done")
-    a("rm -rf /var/run/wsup_* /var/run/hostapd_wps_* /var/run/hostapd_dg_* 2>/dev/null || true")
+    a('rm -rf "$LAB_DIR" 2>/dev/null || true   # runtime propio del lab (configs, sockets, certs)')
+    a('mkdir -p "$RUN_DIR"')
     a(textwrap.dedent('''\
         for ns in $(ip netns list | awk '{print $1}'); do
           case "$ns" in ns_*) ip netns del "$ns" 2>/dev/null || true ;; esac
@@ -1088,6 +1092,15 @@ def main():
             print(f"[-] Sin permisos para crear '{base}'. Ejecuta con sudo o usa "
                   f"--labs-dir en una ruta donde puedas escribir.", file=sys.stderr)
             sys.exit(1)
+
+        # Aviso si la ruta puede producir sockets de control demasiado largos
+        # (los sockets Unix tienen ~108 caracteres de límite). El sufijo más
+        # largo en runtime es "/runtime/run/hostapd_wps_<idx>".
+        ruta_socket_max = len(os.path.abspath(labdir)) + len("/runtime/run/hostapd_wps_99")
+        if ruta_socket_max > 100:
+            print(f"[aviso] la ruta del laboratorio es larga ({ruta_socket_max} car. en el "
+                  f"peor socket); si el despliegue falla por 'ctrl_interface', usa un nombre "
+                  f"más corto o --labs-dir más corto.", file=sys.stderr)
 
         if os.path.exists(labdir):
             if not os.path.isdir(labdir):

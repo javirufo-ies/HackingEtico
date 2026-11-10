@@ -78,8 +78,19 @@ todo lo necesario:
 ├── despliegue.sh              # script de despliegue
 ├── lab.conf                   # copia de la configuración (para regenerarlo igual)
 ├── compila_hostapd_pmkid.sh   # solo si el lab usa pmkid/wps
-└── sae_online.sh              # solo si el lab usa wpa3
+├── sae_online.sh              # solo si el lab usa wpa3
+└── runtime/                   # lo crea el despliegue al ejecutarse:
+    ├── s0/ s1/ …              #   configuraciones y certificados de cada escenario
+    └── run/                   #   sockets de control de hostapd/wpa_supplicant
 ```
+
+**Todo lo del laboratorio vive dentro de su carpeta.** El despliegue no escribe
+nada en `/opt/wifi-lab` ni en `/var/run`: crea un subdirectorio `runtime/` dentro
+de la propia carpeta del laboratorio para las configuraciones, los certificados y
+los sockets de control, y lo borra y recrea en cada despliegue. Lo único que es
+global (y lo es por naturaleza del kernel) son el módulo `mac80211_hwsim`, los
+*network namespaces* (`ns_*`) y los nombres de interfaz; de eso se encarga la
+limpieza del propio script y tu `limpia.sh`.
 
 Se usa `/opt/wifi-labs` **fuera del repositorio** a propósito: así los
 laboratorios generados no interfieren con `git pull` ni se suben al repo por error.
@@ -321,8 +332,10 @@ sudo ./despliegue.sh /ruta/diccionario.txt # claves de otro diccionario
 
 El script, por orden: instala paquetes que falten, carga `mac80211_hwsim` con el
 número exacto de radios, renombra las interfaces, crea los namespaces, genera las
-configuraciones (con claves del diccionario), arranca los APs y los clientes con
-su tráfico, imprime el resumen y borra los `.conf` del disco.
+configuraciones (con claves del diccionario) **dentro de su propio `runtime/`**,
+arranca los APs y los clientes con su tráfico, imprime el resumen y borra los
+`.conf` del disco. No toca `/var/run` ni ningún directorio global: todo queda bajo
+la carpeta del laboratorio.
 
 Poner una interfaz del alumno en modo monitor:
 
