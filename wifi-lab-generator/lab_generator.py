@@ -77,6 +77,7 @@ TYPES = {
                     desc="WPA3 downgrade: AP gemelo WPA2"),
 }
 
+LABS_DIR_DEFAULT = "/opt/wifi-labs"   # base donde se crean los laboratorios
 MAX_RADIOS_HARD = 100       # tope del módulo mac80211_hwsim
 MAX_RADIOS_WARN = 50        # a partir de aquí, aviso por RAM/CPU
 
@@ -1046,8 +1047,11 @@ def main():
         description="Genera un laboratorio Wi-Fi (script de despliegue) a partir de un .conf")
     ap.add_argument("config", help="fichero de configuración del laboratorio")
     ap.add_argument("name", nargs="?",
-                    help="nombre del laboratorio: crea un directorio con ese nombre y mete "
-                         "dentro todos los ficheros. Si se omite, se genera un único script.")
+                    help="nombre del laboratorio: crea una carpeta con ese nombre (por defecto "
+                         "en " + LABS_DIR_DEFAULT + ") y mete dentro todos los ficheros. Si se "
+                         "omite, se genera un único script en el directorio actual.")
+    ap.add_argument("--labs-dir", default=LABS_DIR_DEFAULT,
+                    help="directorio base donde crear los laboratorios (def: %(default)s)")
     ap.add_argument("-o", "--output",
                     help="nombre del script de despliegue (def: despliegue.sh)")
     ap.add_argument("--dict", help="sobrescribe la directiva 'dict' del fichero")
@@ -1069,7 +1073,22 @@ def main():
 
     # ---- Modo directorio: lab_generator.py CONFIG NOMBRE ----
     if args.name:
-        labdir = args.name
+        # Si el nombre es una ruta (absoluta o con '/'), se respeta tal cual;
+        # si es un nombre simple, se crea dentro del directorio base (--labs-dir).
+        if os.path.isabs(args.name) or os.sep in args.name:
+            labdir = args.name
+        else:
+            labdir = os.path.join(args.labs_dir, args.name)
+
+        # Crear el directorio base si no existe
+        base = os.path.dirname(os.path.abspath(labdir))
+        try:
+            os.makedirs(base, exist_ok=True)
+        except PermissionError:
+            print(f"[-] Sin permisos para crear '{base}'. Ejecuta con sudo o usa "
+                  f"--labs-dir en una ruta donde puedas escribir.", file=sys.stderr)
+            sys.exit(1)
+
         if os.path.exists(labdir):
             if not os.path.isdir(labdir):
                 print(f"[-] '{labdir}' existe y no es un directorio.", file=sys.stderr)
@@ -1078,7 +1097,12 @@ def main():
                 print(f"[-] El directorio '{labdir}' ya existe. Usa -f para sobrescribirlo.",
                       file=sys.stderr)
                 sys.exit(1)
-        os.makedirs(labdir, exist_ok=True)
+        try:
+            os.makedirs(labdir, exist_ok=True)
+        except PermissionError:
+            print(f"[-] Sin permisos para crear '{labdir}'. Ejecuta con sudo o usa "
+                  f"--labs-dir en una ruta donde puedas escribir.", file=sys.stderr)
+            sys.exit(1)
 
         # Script de despliegue
         ruta_script = os.path.join(labdir, script_name)
@@ -1098,16 +1122,14 @@ def main():
             if copiar_auxiliar("sae_online.sh", labdir):
                 copiados.append("sae_online.sh")
 
-        print(f"[OK] Laboratorio '{labdir}/' creado "
+        ruta_abs = os.path.abspath(labdir)
+        print(f"[OK] Laboratorio creado en {ruta_abs}/ "
               f"({len(cfg['plan'])} escenarios, {cfg['total']} radios)")
         print(f"     - {script_name}      (script de despliegue)")
         print(f"     - lab.conf          (copia de la configuración)")
         for c in copiados:
             print(f"     - {c}")
-        if "pmkid" in cfg["features"] and "compila_hostapd_pmkid.sh" in copiados:
-            print(f"     Despliega:  cd {labdir} && sudo ./compila_hostapd_pmkid.sh && sudo ./{script_name}")
-        else:
-            print(f"     Despliega:  cd {labdir} && sudo ./{script_name}")
+        print(f"     Despliega:  cd {ruta_abs} && sudo ./{script_name}")
         return
 
     # ---- Modo fichero único: lab_generator.py CONFIG [-o SALIDA] ----

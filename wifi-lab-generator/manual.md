@@ -36,7 +36,11 @@ produce un script de despliegue bash autónomo que levanta todos los escenarios
 - **Diccionario** de claves accesible en la VM (por defecto
   `/usr/share/wordlists/rockyou.txt`; en Kali viene comprimido: `sudo gunzip`).
 - Para los escenarios **PMKID** y **WPS**: hay que compilar una vez el `hostapd`
-  parcheado (ver §7).
+  parcheado (ver §7); el despliegue lo hace solo.
+- Los laboratorios se crean por defecto en **`/opt/wifi-labs/`** (fuera del
+  repositorio, para no interferir con Git). Necesita permiso de escritura ahí:
+  ejecuta el generador con `sudo` o prepara la carpeta una vez con
+  `sudo mkdir -p /opt/wifi-labs && sudo chown $USER /opt/wifi-labs`.
 
 ---
 
@@ -48,10 +52,10 @@ cp lab.conf.example mi_lab.conf
 nano mi_lab.conf
 
 # 2. Generar el laboratorio en su propia carpeta (en la máquina del profesor)
-./lab_generator.py mi_lab.conf lab_junio
+./lab_generator.py mi_lab.conf lab_junio      # -> /opt/wifi-labs/lab_junio/
 
-# 3. Llevar la carpeta a la VM y desplegar (como root)
-cd lab_junio
+# 3. Desplegar desde esa carpeta (como root)
+cd /opt/wifi-labs/lab_junio
 sudo ./despliegue.sh
 ```
 
@@ -66,24 +70,40 @@ cada escenario. Las interfaces de ataque del alumno son `wlan0`, `wlan1`, …
 ### Laboratorios en carpetas propias
 
 Al indicar un **nombre de laboratorio** como segundo parámetro, el generador crea
-una carpeta con ese nombre y mete dentro todo lo necesario:
+una carpeta con ese nombre, **por defecto en `/opt/wifi-labs/`**, y mete dentro
+todo lo necesario:
 
 ```
-lab_junio/
+/opt/wifi-labs/lab_junio/
 ├── despliegue.sh              # script de despliegue
 ├── lab.conf                   # copia de la configuración (para regenerarlo igual)
 ├── compila_hostapd_pmkid.sh   # solo si el lab usa pmkid/wps
 └── sae_online.sh              # solo si el lab usa wpa3
 ```
 
-Así puedes tener varios laboratorios (uno por carpeta) sin copiar ficheros a mano:
+Se usa `/opt/wifi-labs` **fuera del repositorio** a propósito: así los
+laboratorios generados no interfieren con `git pull` ni se suben al repo por error.
+Como está en `/opt`, el generador necesita permisos de escritura ahí (ejecútalo con
+`sudo`, o crea la carpeta una vez con `sudo mkdir -p /opt/wifi-labs && sudo chown
+$USER /opt/wifi-labs`).
+
+Puedes tener varios laboratorios (uno por carpeta) sin copiar ficheros a mano:
 
 ```bash
-./lab_generator.py basico.conf   lab_clase1
-./lab_generator.py avanzado.conf lab_examen -f     # -f sobrescribe si ya existe
+sudo ./lab_generator.py basico.conf   lab_clase1    # -> /opt/wifi-labs/lab_clase1/
+sudo ./lab_generator.py avanzado.conf lab_examen -f # -f sobrescribe si ya existe
 ```
 
-Cada carpeta es autónoma: se copia entera a la VM y se despliega desde dentro.
+Para cambiar el directorio base, usa `--labs-dir`; para una ubicación puntual,
+pasa una ruta como nombre (se respeta tal cual):
+
+```bash
+./lab_generator.py mi.conf lab_junio --labs-dir /srv/labs   # -> /srv/labs/lab_junio/
+./lab_generator.py mi.conf ./pruebas/lab_test               # -> ./pruebas/lab_test/
+```
+
+Cada carpeta es autónoma: se copia entera a la VM (o se genera ya en ella) y se
+despliega desde dentro.
 
 Para rehacer un laboratorio tras cambiar su configuración, vuelve a generar (con
 `-f`) y a desplegar. Para apagarlo, usa tu `limpia.sh` (o reinicia la VM).
@@ -261,26 +281,28 @@ reproducible en clase, el alumno debe usar **ese mismo diccionario**.
 ## 10. Referencia de comandos del generador
 
 ```
-./lab_generator.py CONFIG [NOMBRE] [-o SALIDA] [--dict RUTA] [-f]
+./lab_generator.py CONFIG [NOMBRE] [-o SALIDA] [--dict RUTA] [--labs-dir BASE] [-f]
 ```
 
 | Argumento | Descripción |
 |---|---|
 | `CONFIG` | Fichero de configuración del laboratorio (obligatorio). |
-| `NOMBRE` | Nombre del laboratorio: crea una carpeta con ese nombre y mete dentro todos los ficheros. Si se omite, genera un único script. |
+| `NOMBRE` | Nombre del laboratorio: crea `BASE/NOMBRE/` con todos los ficheros. Si es una ruta (absoluta o con `/`), se usa tal cual. Si se omite, genera un único script. |
 | `-o`, `--output` | Nombre del script de despliegue (por defecto `despliegue.sh`). |
 | `--dict RUTA` | Sobrescribe la directiva `dict` del fichero. |
+| `--labs-dir BASE` | Directorio base de los laboratorios (por defecto `/opt/wifi-labs`). |
 | `-f`, `--force` | Sobrescribe la carpeta del laboratorio si ya existe. |
 
 Ejemplos:
 
 ```bash
-# Modo carpeta (recomendado): cada lab en lo suyo
-./lab_generator.py mi_lab.conf lab_junio
-./lab_generator.py mi_lab.conf lab_junio -f            # sobrescribir
-./lab_generator.py mi_lab.conf lab_junio --dict /usr/share/wordlists/fasttrack.txt
+# Modo carpeta (recomendado): cada lab en /opt/wifi-labs/<nombre>/
+sudo ./lab_generator.py mi_lab.conf lab_junio
+sudo ./lab_generator.py mi_lab.conf lab_junio -f        # sobrescribir
+sudo ./lab_generator.py mi_lab.conf lab_junio --dict /usr/share/wordlists/fasttrack.txt
+./lab_generator.py mi_lab.conf lab_junio --labs-dir ~/labs   # otra base
 
-# Modo fichero único (sin nombre): solo el script
+# Modo fichero único (sin nombre): solo el script, en el directorio actual
 ./lab_generator.py mi_lab.conf
 ./lab_generator.py mi_lab.conf -o lab_examen.sh
 ```
@@ -367,14 +389,14 @@ he_mixto_b        open        1   6
 ```
 
 ```bash
-# Profesor: genera el laboratorio en su carpeta
-./lab_generator.py examen.conf lab_examen
+# Profesor: genera el laboratorio en su carpeta (en /opt/wifi-labs)
+sudo ./lab_generator.py examen.conf lab_examen
 #   [info] canal 6 compartido por: he_mixto_a, he_mixto_b (filtrar por BSSID)
-#   [OK] Laboratorio 'lab_examen/' creado (6 escenarios, 18 radios)
+#   [OK] Laboratorio creado en /opt/wifi-labs/lab_examen/ (6 escenarios, 18 radios)
 #        - despliegue.sh, lab.conf, compila_hostapd_pmkid.sh, sae_online.sh
 
-# Copiar la carpeta lab_examen/ a la VM, y dentro, un único comando:
-cd lab_examen
+# Desplegar: un único comando
+cd /opt/wifi-labs/lab_examen
 sudo ./despliegue.sh    # compila el hostapd parcheado solo si hace falta
 ```
 
