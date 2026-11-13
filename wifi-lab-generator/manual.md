@@ -133,6 +133,18 @@ indistintamente.
 |---|---|---|
 | `dict` | `/usr/share/wordlists/rockyou.txt` | Diccionario del que salen las claves. |
 | `student_ifaces` | `7` | Número de interfaces de ataque del alumno (`wlan0`…`wlanN-1`). |
+| `mantener_claves` | `false` | Si es `true`, el laboratorio usa **siempre las mismas claves** (reproducibles). Si es `false`, son aleatorias en cada despliegue. |
+| `seed` | (nombre del lab) | Semilla para las claves reproducibles. Solo se usa con `mantener_claves = true`; por defecto es el nombre del laboratorio. |
+
+**Claves reproducibles (`mantener_claves`).** Por defecto las claves son aleatorias
+en cada despliegue (mejor anti-cheat). Si el alumno tiene que entregar capturas y no
+quieres que las claves le cambien entre sesiones, pon `mantener_claves = true`: el
+laboratorio usará siempre las mismas claves, derivadas de forma determinista de una
+semilla. La semilla es el **nombre del laboratorio**, así que cada lab tiene claves
+distintas pero estables; dos despliegues del mismo lab dan exactamente las mismas
+claves (WPA2/WPA3, WEP y PIN/clave de WPS incluidos). Para forzar otra semilla
+—por ejemplo, claves distintas por convocatoria con el mismo nombre— añade
+`seed = <texto>`. Requiere `openssl` en la VM (el script lo instala si falta).
 
 ### 4.2 Líneas de red
 

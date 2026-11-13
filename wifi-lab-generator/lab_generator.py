@@ -110,6 +110,10 @@ class ConfigError(Exception):
 # ------------------------------------------------------------------------------
 # Parseo del fichero de configuración
 # ------------------------------------------------------------------------------
+def parse_bool(v):
+    return str(v).strip().lower() in ("true", "1", "si", "sí", "yes", "y", "on")
+
+
 def parse_config(path):
     directivas = {"dict": "/usr/share/wordlists/rockyou.txt", "student_ifaces": "7"}
     redes = []
@@ -268,7 +272,9 @@ def planificar(directivas, redes):
     if any(p["dfs"] for p in plan):
         features.add("dfs")
     return dict(student=student, total=total, plan=plan, features=features,
-                dict_path=directivas.get("dict", "/usr/share/wordlists/rockyou.txt"))
+                dict_path=directivas.get("dict", "/usr/share/wordlists/rockyou.txt"),
+                mantener=parse_bool(directivas.get("mantener_claves", "false")),
+                seed_directive=directivas.get("seed"))
 
 
 # ------------------------------------------------------------------------------
@@ -327,12 +333,12 @@ network={
     key_mgmt=NONE
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, LINEA=i + 1)
 
     if t in ("wpa2", "pmkid", "pmkid_nc"):
         okc = "okc=1" if t in ("pmkid", "pmkid_nc") else ""
         return tpl('''
-K@I@="$(palabra_aleatoria)"
+K@I@="$(palabra_aleatoria @LINEA@)"
 PSK@I@="$(calcula_pmk @SSID@ "$K@I@")"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
@@ -353,11 +359,11 @@ network={
     psk=$PSK@I@
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, OKC=okc)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, OKC=okc, LINEA=i + 1)
 
     if t == "wep":
         return tpl('''
-WEP_ASCII@I@="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 13)"
+WEP_ASCII@I@="$(rand_ascii 13 wep@I@)"
 WEP_HEX@I@="$(printf '%s' "$WEP_ASCII@I@" | od -An -tx1 | tr -d ' \\n')"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
@@ -379,7 +385,7 @@ network={
     auth_alg=OPEN
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, LINEA=i + 1)
 
     if t == "enterprise":
         return tpl('''
@@ -391,7 +397,7 @@ if [ ! -s "$CERT_DIR@I@/server.pem" ] || [ ! -s "$CERT_DIR@I@/server.key" ]; the
     -keyout "$CERT_DIR@I@/server.key" -out "$CERT_DIR@I@/server.pem" > /dev/null 2>&1
   chmod 600 "$CERT_DIR@I@/server.key"
 fi
-K@I@="$(palabra_aleatoria)"
+K@I@="$(palabra_aleatoria @LINEA@)"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
 driver=nl80211
@@ -424,13 +430,13 @@ network={
     phase2="auth=MSCHAPV2"
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, LINEA=i + 1)
 
     if t == "wps":
         return tpl('''
-WPS_PIN7@I@="$(printf '%04d' $((RANDOM % 100)))$(printf '%03d' $((RANDOM % 100)))"
+WPS_PIN7@I@="$(wps_pin7 @I@)"
 WPS_PIN@I@="${WPS_PIN7@I@}$(wps_checksum "$WPS_PIN7@I@")"
-WPS_PASS@I@="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16)"
+WPS_PASS@I@="$(rand_ascii 16 wpspass@I@)"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
 driver=nl80211
@@ -462,11 +468,11 @@ network={
     psk="$WPS_PASS@I@"
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, LINEA=i + 1)
 
     if t == "wpa3":
         return tpl('''
-K@I@="$(palabra_aleatoria)"
+K@I@="$(palabra_aleatoria @LINEA@)"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
 driver=nl80211
@@ -488,11 +494,11 @@ network={
     ieee80211w=2
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, LINEA=i + 1)
 
     if t == "wpa3_tm":
         return tpl('''
-K@I@="$(palabra_aleatoria)"
+K@I@="$(palabra_aleatoria @LINEA@)"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
 driver=nl80211
@@ -525,11 +531,11 @@ network={
     ieee80211w=0
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, LINEA=i + 1)
 
     if t == "wpa3_dg":
         return tpl('''
-K@I@="$(palabra_aleatoria)"
+K@I@="$(palabra_aleatoria @LINEA@)"
 cat << EOF > "@D@/hostapd.conf"
 interface=@AP@
 driver=nl80211
@@ -555,7 +561,7 @@ network={
     ieee80211w=1
 }
 EOF
-''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i)
+''', D=d, AP=ap, SSID=ssid, CH=ch, RADIO=radio, I=i, LINEA=i + 1)
 
     raise ConfigError(f"tipo sin plantilla de configuración: {t}")
 
@@ -582,9 +588,9 @@ def cli_block(p):
 ip netns exec @NS@ wpa_supplicant -B -Dnl80211 -i @IF@ -c "@D@/cli.conf"
 sleep 1
 ip netns exec @NS@ ip addr add @IP@/24 dev @IF@
-CLAVE_OPEN@I@="$(palabra_aleatoria)"
+CLAVE_OPEN@I@="$(palabra_aleatoria @LINEA_OPEN@)"
 ip netns exec @NS@ sh -c ": LAB_TRAFFIC; while true; do curl -s -m 1 -X POST -d \\"user=admin&pass=$CLAVE_OPEN@I@\\" http://@GW@/login.php > /dev/null 2>&1 || true; sleep 1; done" &
-''', I=i, NS=c["ns"], IF=c["iface"], D=d, IP=ip, GW=gw))
+''', I=i, NS=c["ns"], IF=c["iface"], D=d, IP=ip, GW=gw, LINEA_OPEN=200 + i * 10 + c["j"]))
         return "".join(out)
 
     if t in ("wpa2", "pmkid"):
@@ -743,6 +749,8 @@ def emitir(cfg, conf_path):
         paquetes += ["hcxtools", "pocl-opencl-icd", "ocl-icd-libopencl1"]
     if "enterprise" in feats:
         paquetes += ["hostapd-wpe", "openssl"]
+    if cfg.get("mantener"):
+        paquetes.append("openssl")   # fuente determinista para shuf --random-source
     paquetes.append("net-tools")  # nc para el servidor HTTP del open
     a("PAQUETES=(" + " ".join(sorted(set(paquetes))) + ")")
     a(textwrap.dedent('''\
@@ -786,11 +794,47 @@ def emitir(cfg, conf_path):
           echo "[-] El diccionario no tiene palabras válidas (8-63 ASCII)."; rm -f "$DICC_FILTRADO"; exit 1
         fi
         echo "[+] Diccionario: $DICCIONARIO ($(wc -l < "$DICC_FILTRADO") claves candidatas)"
-        palabra_aleatoria() { shuf -n1 "$DICC_FILTRADO"; }
         if ! command -v wpa_passphrase >/dev/null 2>&1; then
           echo "[-] Falta wpa_passphrase (paquete wpasupplicant)."; rm -f "$DICC_FILTRADO"; exit 1
         fi
         calcula_pmk() { wpa_passphrase "$1" "$2" | sed -n 's/^\\tpsk=//p'; }'''))
+
+    if cfg.get("mantener"):
+        # Claves REPRODUCIBLES: mismas en cada despliegue de este laboratorio.
+        # La semilla es el nombre del laboratorio; cada lab tiene claves distintas
+        # pero estables. La selección del diccionario y las claves WEP/WPS se
+        # derivan de un flujo pseudoaleatorio determinista (openssl).
+        a(tpl('SEED="@SEED@"   # semilla fija (nombre del laboratorio): claves reproducibles',
+              SEED=cfg["seed"]))
+        a(textwrap.dedent('''\
+            if ! command -v openssl >/dev/null 2>&1; then
+              echo "[-] mantener_claves activo pero falta openssl."; rm -f "$DICC_FILTRADO"; exit 1
+            fi
+            get_seeded_random() { openssl enc -aes-256-ctr -pass "pass:$1" -nosalt < /dev/zero 2>/dev/null; }
+            # Baraja el diccionario UNA vez de forma determinista (misma semilla =>
+            # misma permutación) y reparte palabras distintas en orden. Así dos
+            # redes nunca comparten clave, sea cual sea el tamaño del diccionario.
+            DICC_BARAJADO="$(mktemp)"
+            shuf --random-source=<(get_seeded_random "$SEED:orden") "$DICC_FILTRADO" > "$DICC_BARAJADO"
+            DICC_LINEAS="$(wc -l < "$DICC_BARAJADO")"
+            # El número de clave lo pasa quien llama (cada red usa uno distinto),
+            # para no depender de un contador global entre subshells. El módulo
+            # evita desbordar con diccionarios pequeños.
+            palabra_aleatoria() { local n=$(( ($1 % DICC_LINEAS) + 1 )); sed -n "${n}p" "$DICC_BARAJADO"; }
+            rand_ascii() {   # $1=longitud  $2=etiqueta (clave reproducible por etiqueta)
+              get_seeded_random "$SEED:$2" | tr -dc 'A-Za-z0-9' | head -c "$1"
+            }
+            wps_pin7() {     # 7 dígitos deterministas, primera mitad 00xx y segunda 0xx
+              local D; D=$(printf '%s' "$SEED:wps:$1" | sha256sum | tr -dc '0-9')
+              printf '%04d%03d' $(( 10#${D:0:3} % 100 )) $(( 10#${D:3:3} % 100 ))
+            }
+            echo "[+] Claves REPRODUCIBLES (mantener_claves): semilla \\"$SEED\\""'''))
+    else:
+        # Comportamiento por defecto: claves ALEATORIAS en cada despliegue.
+        a(textwrap.dedent('''\
+            palabra_aleatoria() { shuf -n1 "$DICC_FILTRADO"; }   # el argumento se ignora
+            rand_ascii() { tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$1"; }
+            wps_pin7() { printf '%04d%03d' $((RANDOM % 100)) $((RANDOM % 100)); }'''))
     a("")
 
     # Checksum WPS si hace falta
@@ -1003,7 +1047,7 @@ def emitir(cfg, conf_path):
     a("get_bssid() { ip netns exec \"$1\" cat \"/sys/class/net/$2/address\" 2>/dev/null; }")
     for p in plan:
         a(f'BSSID{p["idx"]}=$(get_bssid {p["ap_ns"]} {p["ap_iface"]})')
-    a('rm -f "$DICC_FILTRADO" 2>/dev/null || true')
+    a('rm -f "$DICC_FILTRADO" "$DICC_BARAJADO" 2>/dev/null || true')
     a("")
 
     # Anti-cheat: borrar confs
@@ -1063,17 +1107,27 @@ def main():
                     help="sobrescribe el directorio del laboratorio si ya existe")
     args = ap.parse_args()
 
+    script_name = args.output or "despliegue.sh"
+
     try:
         directivas, redes = parse_config(args.config)
         if args.dict:
             directivas["dict"] = args.dict
         cfg = planificar(directivas, redes)
+        # Semilla para claves reproducibles (mantener_claves): la directiva 'seed'
+        # si se indica; si no, el nombre del laboratorio; en su defecto, el nombre
+        # del fichero de salida o de la configuración.
+        if cfg.get("seed_directive"):
+            cfg["seed"] = cfg["seed_directive"]
+        elif args.name:
+            cfg["seed"] = os.path.basename(args.name.rstrip("/\\"))
+        else:
+            cfg["seed"] = os.path.splitext(os.path.basename(script_name))[0] or \
+                          os.path.splitext(os.path.basename(args.config))[0]
         script = emitir(cfg, args.config)
     except ConfigError as e:
         print(f"[-] Error de configuración: {e}", file=sys.stderr)
         sys.exit(1)
-
-    script_name = args.output or "despliegue.sh"
 
     # ---- Modo directorio: lab_generator.py CONFIG NOMBRE ----
     if args.name:
